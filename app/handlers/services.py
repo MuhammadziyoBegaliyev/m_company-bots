@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # app/handlers/services.py
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
@@ -32,7 +33,7 @@ DETAIL_URLS = {
 
 
 def _services_menu_kb(lang: str) -> InlineKeyboardMarkup:
-    """Xizmatlar ro‘yxati: 3 qatorda 2 tadan tugma."""
+    """Xizmatlar ro‘yxati: ketma-ket (har qatorga bitta tugma)."""
     t = L.get(lang, L["uz"])
     titles = [
         t["svc_crm"], t["svc_site"], t["svc_leads"],
@@ -45,12 +46,13 @@ def _services_menu_kb(lang: str) -> InlineKeyboardMarkup:
         )
         for k, title in zip(SERVICE_KEYS, titles)
     ]
-    rows = [[btns[i], btns[i+1]] for i in range(0, len(btns), 2)]
+    # Har qatorga bitta tugma
+    rows = [[btn] for btn in btns]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _detail_kb(lang: str, key: str) -> InlineKeyboardMarkup:
-    """Bitta xizmat sahifasi uchun: (Batafsil) + (Orqaga)"""
+    """Bitta xizmat sahifasi uchun: (Batafsil) + (Orqaga) — har biri alohida qatorda."""
     t = L.get(lang, L["uz"])
     rows = [
         [InlineKeyboardButton(text=t["svc_more"], url=DETAIL_URLS[key])],

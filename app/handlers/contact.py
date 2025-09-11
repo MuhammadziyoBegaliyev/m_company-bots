@@ -44,10 +44,7 @@ def _social_kb(lang: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📘 Facebook", url="https://mcompany.uz"),  # agar FB yo'q bo'lsa saytga
             InlineKeyboardButton(text="🌐 Website",  url="https://mcompany.uz"),
         ],
-        [
-            InlineKeyboardButton(text="🔗 Website #2", url="https://mcompany.uz"),
-            InlineKeyboardButton(text="🏷️ Website #3", url="https://mcompany.uz"),
-        ],
+        
         [InlineKeyboardButton(text=t["back_btn"], callback_data="contact:back")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
