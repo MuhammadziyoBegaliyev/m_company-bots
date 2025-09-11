@@ -184,7 +184,14 @@ L = {
         "call_now_btn": "📞 Qo‘ng‘iroq qilish",
         "open_in_gmail_btn": "📨 Gmail’da yozish",
 
-        "contact_hours_text": "Dushanba — Shanba: 08:00–18:00\nYakshanba: dam",
+        "contact_hours_text": f"🕒 Haftalik rejimimiz:\n"
+                                "Dushanba (🔑 Start): 08:00–18:00\n"
+                                "Seshanba (⚡ Kuch): 08:00–18:00\n"
+                                "Chorshanba (🚀 Yaratuvchanlik): 08:00–18:00\n"
+                                "Payshanba (🌿 Barqarorlik): 08:00–18:00\n"
+                                "Juma (🔥 Energiya): 08:00–18:00\n"
+                                "Shanba (🌟 Yaxshi kayfiyat): 08:00–18:00\n"
+                                "Yakshanba (😴 Recharge): Dam olish kuni\n",
         "contact_social_title": "Ijtimoiy tarmoqlarimiz:",
         "contact_tg_text": "@Narkuziyev — M Company General Manager",
         "back_btn": "⬅️ Orqaga",
@@ -195,7 +202,7 @@ L = {
         "about_btn_why": "Nima uchun M Company boshqacha?",
         "about_what_text": (
             "<b>M Company nima? </b>\n"
-            "<b>Natijaga yo‘naltirilgan tizimlar</b>\n"
+            "✅ <b>Natijaga yo‘naltirilgan tizimlar</b>\n"
             "Biz — tizimli o‘sish kompaniyasimiz, faqat natija beradigan tizimlarni quramiz.\n\n"
             "<b>Avtomatlashtirish & CRM</b>\n"
             "Biznes egalari nazariya emas, amalda ishlaydigan tizimni xohlashadi. Biz uni quramiz.\n\n"
@@ -373,7 +380,15 @@ L = {
         "call_now_btn": "📞 Call now",
         "open_in_gmail_btn": "📨 Open in Gmail",
 
-        "contact_hours_text": "Mon — Sat: 08:00–18:00\nSun: closed",
+        "contact_hours_text": f"🕒 Our Weekly Schedule:\n"
+                                "Monday (🔑 Kick-off): 08:00–18:00\n"
+                                "Tuesday (⚡ Power Mode): 08:00–18:00\n"
+                                "Wednesday (🚀 Creativity Boost): 08:00–18:00\n"
+                                "Thursday (🌿 Balance & Focus): 08:00–18:00\n"
+                                "Friday (🔥 Full Energy): 08:00–18:00\n"
+                                "Saturday (🌟 Good Vibes): 08:00–18:00\n"
+                                "Sunday (😴 Recharge Day): Closed\n",
+
         "contact_social_title": "Our social links:",
         "contact_tg_text": "@Narkuziyev — M Company General Manager",
         "back_btn": "⬅️ Back",
@@ -384,7 +399,7 @@ L = {
         "about_btn_why": "Why is M Company different?",
         "about_what_text": (
             "<b>What is M Company? </b>\n"
-            "<b>Outcome-driven systems</b>\n"
+            "✅ <b>Outcome-driven systems</b>\n"
             "We are a systems-growth company. We build only what delivers results.\n\n"
             "<b>Automation & CRM</b>\n"
             "Owners don’t want theory—they need working systems. We build them.\n\n"
@@ -572,7 +587,7 @@ L = {
         "about_btn_why": "Почему M Company — иначе?",
         "about_what_text": (
             "<b>Что такое компания M?</b>\n"
-            "<b>Системы, ориентированные на результат</b>\n"
+            "✅ <b>Системы, ориентированные на результат</b>\n"
             "Мы — компания системного роста и строим только то, что даёт результат.\n\n"
             "<b>Автоматизация и CRM</b>\n"
             "Владельцам нужна не теория, а работающие системы. Мы их строим.\n\n"
