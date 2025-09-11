@@ -1,0 +1,37 @@
+# --- Telegram bot runtime ---
+
+# Aiogram 3.x (Router, F, FSM, v3 sintaksisi uchun)
+aiogram>=3.6.0,<4.0.0
+
+# Aiogram HTTP stack
+aiohttp>=3.9.5,<4.0.0
+magic-filter>=1.0.12,<2.0.0  # aiogram F/filter DSL
+
+# --- Config & validation ---
+
+# Pydantic v2 va settings
+pydantic>=2.7.0,<3.0.0
+pydantic-core>=2.18.0,<3.0.0   # ABI mosligini barqaror saqlash uchun
+pydantic-settings>=2.3.0,<3.0.0
+
+# --- Logging ---
+
+loguru>=0.7.2,<1.0.0
+
+# --- Environment (.env) qo‘llab-quvvatlash ---
+# pydantic-settings .env faylini o‘zi o‘qiydi; lekin turli muhitlarda moslik uchun foydali
+python-dotenv>=1.0.1,<2.0.0
+
+# --- Performance & qo‘shimcha optimizatsiyalar (ixtiyoriy) ---
+
+# Tezroq event loop (Linux/macOS, CPython)
+uvloop>=0.20.0; sys_platform != "win32" and platform_python_implementation == "CPython"
+
+# Tez JSON (CPython)
+orjson>=3.10.3; platform_python_implementation == "CPython"
+
+# DNSni tezlashtirish (Windowsdan tashqari)
+aiodns>=3.1.1; platform_system != "Windows"
+
+# HTTP siqishni yaxshilash (ixtiyoriy)
+Brotli>=1.1.0; platform_python_implementation == "CPython"

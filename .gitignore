@@ -1,0 +1,62 @@
+# --- Python bytecode ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+.python-version
+
+# --- Build / packaging ---
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+__pypackages__/
+
+# --- Caches / tooling ---
+.cache/
+.mypy_cache/
+.pytype/
+.pyre/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.ipynb_checkpoints/
+
+# --- Coverage / test outputs ---
+.coverage*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# --- Logs & local databases ---
+*.log
+bot.log
+*.sqlite3
+*.db
+
+# --- Secrets & keys ---
+.env
+.env.*
+.envrc
+secrets/
+*.pem
+*.key
+*.crt
+
+# --- Editors / OS files ---
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# --- Node (if present) ---
+node_modules/
