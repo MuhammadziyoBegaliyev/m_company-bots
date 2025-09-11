@@ -62,9 +62,12 @@ def _faq_keyboard(lang: str) -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=t["back_btn"], callback_data="faq:back"),
     ]
     rows = [
-        [buttons[0], buttons[1]],
-        [buttons[2], buttons[3]],
-        [buttons[4], buttons[5]],
+        [buttons[0]],
+        [buttons[1]],
+        [buttons[2]],
+        [buttons[3]],
+        [buttons[4]],
+        [buttons[5]],
         [buttons[6]],
         [buttons[7]],
         [buttons[8]],

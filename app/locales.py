@@ -194,6 +194,7 @@ L = {
         "about_btn_what": "M Company nima?",
         "about_btn_why": "Nima uchun M Company boshqacha?",
         "about_what_text": (
+            "<b>M Company nima? </b>\n"
             "<b>Natijaga yo‘naltirilgan tizimlar</b>\n"
             "Biz — tizimli o‘sish kompaniyasimiz, faqat natija beradigan tizimlarni quramiz.\n\n"
             "<b>Avtomatlashtirish & CRM</b>\n"
@@ -382,6 +383,7 @@ L = {
         "about_btn_what": "What is M Company?",
         "about_btn_why": "Why is M Company different?",
         "about_what_text": (
+            "<b>What is M Company? </b>\n"
             "<b>Outcome-driven systems</b>\n"
             "We are a systems-growth company. We build only what delivers results.\n\n"
             "<b>Automation & CRM</b>\n"
@@ -569,6 +571,7 @@ L = {
         "about_btn_what": "Что такое M Company?",
         "about_btn_why": "Почему M Company — иначе?",
         "about_what_text": (
+            "<b>Что такое компания M?</b>\n"
             "<b>Системы, ориентированные на результат</b>\n"
             "Мы — компания системного роста и строим только то, что даёт результат.\n\n"
             "<b>Автоматизация и CRM</b>\n"

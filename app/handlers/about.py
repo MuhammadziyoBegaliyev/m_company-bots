@@ -13,9 +13,9 @@ def _about_menu_kb(lang: str) -> InlineKeyboardMarkup:
     t = L[lang]
     rows = [
         [
-            InlineKeyboardButton(text=f"ℹ️ {t['about_btn_what']}", callback_data="about:what"),
-            InlineKeyboardButton(text=f"🧭 {t['about_btn_why']}",  callback_data="about:why"),
-        ]
+            InlineKeyboardButton(text=f"ℹ️ {t['about_btn_what']}", callback_data="about:what")],
+            [InlineKeyboardButton(text=f"🧭 {t['about_btn_why']}",  callback_data="about:why")],
+        
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
