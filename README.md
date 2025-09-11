@@ -87,8 +87,9 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
-# 3) .env (namuna)
 ```
+# 3) .env (namuna)
+
 # BOT_TOKEN=1234567890:AAA...your_token
 # ADMIN_IDS=111111111,222222222
 # FAQ_GROUP_IDS=-1001234567890,-1009876543210
