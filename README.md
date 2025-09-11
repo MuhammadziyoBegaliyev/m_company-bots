@@ -1,4 +1,4 @@
-cat > README.md <<'MD'
+
 <p align="center">
   <img src="assets/hero.svg" alt="M Company Help Bot — aiogram v3 — FAQ → Group → User" width="100%">
 </p>
@@ -6,10 +6,15 @@ cat > README.md <<'MD'
   <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=700&size=22&pause=1200&color=2CA5E0&center=true&vCenter=true&width=800&lines=M+Company+Help+Bot+%E2%80%94+aiogram+v3;UZ+%2F+EN+%2F+RU+multilingual;FAQ+%E2%86%92+Group+%E2%86%92+User;CRM+%E2%80%A2+Website+%E2%80%A2+Leads+%E2%80%A2+Call+Center" alt="typing">
 </p>
 
+<p align="center">
+  <img src="assets/demo.gif" alt="Bot demo" width="780">
+</p>
+
+
 # M Company Help Bot 🚀
 
 **aiogram v3** asosidagi **ko‘p tilli** (UZ / EN / RU) Telegram yordamchi bot.  
-Falsafa: *“Ishlaydigan tizimlar. Real natijalar.”* — ortiqcha gap emas, aniq funksional.
+Falsafa: *“Ishlaydigan tizimlar. Real natijalar.”* 
 
 <p align="left">
   <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white"></a>
@@ -128,7 +133,3 @@ Muhammadziyo Begaliyev — Telegram: @Muhammadziyo7008
 
 
 
-
-<p align="center">
-  <img src="assets/demo.gif" alt="Bot demo" width="780">
-</p>
