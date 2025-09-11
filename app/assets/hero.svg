@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="320" viewBox="0 0 1200 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <defs>
+    <linearGradient id="gBg" x1="0" y1="0" x2="1200" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+
+    <!-- Shimmer gradient for text -->
+    <linearGradient id="gShimmer" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Telegram brand-ish gradient -->
+    <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2CA5E0"/>
+      <stop offset="1" stop-color="#1B8DCB"/>
+    </linearGradient>
+
+    <!-- Soft glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Clip for shimmer over headline -->
+    <clipPath id="headlineClip">
+      <text x="600" y="120" text-anchor="middle" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif"
+            font-size="44" font-weight="800" letter-spacing="1.2"
+            >M COMPANY HELP BOT</text>
+    </clipPath>
+  </defs>
+
+  <rect width="1200" height="320" fill="url(#gBg)"/>
+
+  <!-- Faint grid dots -->
+  <g opacity="0.18">
+    <defs>
+      <pattern id="dotGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+        <circle cx="1" cy="1" r="1" fill="#334155"/>
+      </pattern>
+    </defs>
+    <rect width="1200" height="320" fill="url(#dotGrid)"/>
+  </g>
+
+  <!-- Headline base -->
+  <text x="600" y="120" text-anchor="middle" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif"
+        font-size="44" font-weight="800" letter-spacing="1.2" fill="#e5e7eb">
+    M COMPANY HELP BOT
+  </text>
+
+  <!-- Shimmer sweep -->
+  <g clip-path="url(#headlineClip)" opacity="0.85">
+    <rect id="shimmer" x="-300" y="70" width="300" height="60" fill="url(#gShimmer)">
+      <animate attributeName="x" from="-300" to="1200" dur="3.2s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <!-- Subheadline -->
+  <text x="600" y="155" text-anchor="middle" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif"
+        font-size="18" fill="#9CA3AF">
+    aiogram v3 • UZ / EN / RU • CRM • Website • Leads • Call-center • FAQ → Group → User
+  </text>
+
+  <!-- Chat bubbles (float) -->
+  <g filter="url(#glow)">
+    <!-- Left bubble -->
+    <g transform="translate(210,195)">
+      <rect x="0" y="0" rx="14" ry="14" width="230" height="58" fill="#0b2a3a" stroke="#1f4c63" stroke-width="1.2"/>
+      <text x="16" y="36" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="16" fill="#c7d2fe">
+        ❓ FAQ → Guruhga yuborildi
+      </text>
+      <animateTransform attributeName="transform" type="translate"
+                        values="210,195; 210,190; 210,195" dur="4s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- Right bubble -->
+    <g transform="translate(760,205)">
+      <rect x="0" y="0" rx="14" ry="14" width="250" height="58" fill="#0a2b22" stroke="#1d4f45" stroke-width="1.2"/>
+      <text x="16" y="36" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="16" fill="#bbf7d0">
+        ✅ Admin javobi → User DM
+      </text>
+      <animateTransform attributeName="transform" type="translate"
+                        values="760,205; 760,210; 760,205" dur="4.4s" repeatCount="indefinite"/>
+    </g>
+  </g>
+
+  <!-- Typing indicator (center) -->
+  <g transform="translate(575,210)">
+    <rect x="-48" y="-14" width="96" height="28" rx="14" ry="14" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <circle cx="-20" cy="0" r="4.5" fill="#e5e7eb">
+      <animate attributeName="opacity" values="0.2;1;0.2" dur="1.2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="0" cy="0" r="4.5" fill="#e5e7eb">
+      <animate attributeName="opacity" values="0.2;1;0.2" dur="1.2s" begin="0.2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="20" cy="0" r="4.5" fill="#e5e7eb">
+      <animate attributeName="opacity" values="0.2;1;0.2" dur="1.2s" begin="0.4s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- Telegram-ish paper plane -->
+  <g transform="translate(90,85) rotate(-12)">
+    <path d="M0 30 L110 0 L88 95 L60 70 L40 85 L37 60 L75 28 Z"
+          fill="url(#gBlue)"/>
+    <path d="M75 28 L60 70 L40 85 L65 53 Z" fill="#e0f2fe" opacity="0.8"/>
+    <animateTransform attributeName="transform" type="translate"
+                      values="90,85; 90,80; 90,85" dur="3.6s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- CTA pill -->
+  <g transform="translate(600,260)" filter="url(#glow)">
+    <rect x="-110" y="-24" width="220" height="48" rx="24" fill="#1f2937" stroke="#4b5563"/>
+    <text x="0" y="6" text-anchor="middle" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif"
+          font-size="16" fill="#e5e7eb">/start — Begin</text>
+    <rect x="-110" y="-24" width="220" height="48" rx="24" fill="url(#gBlue)" opacity="0.16">
+      <animate attributeName="opacity" values="0.12;0.28;0.12" dur="2.2s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+</svg>
