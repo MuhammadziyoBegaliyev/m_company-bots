@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# app/handlers/services.py
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from ..locales import L
