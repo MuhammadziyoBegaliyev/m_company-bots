@@ -12,7 +12,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 
 from ..locales import L
-from ..storage.memory import get_lang
+from ..storage.memory import get_lang, get_phone
 from ..config import settings
 
 router = Router()
@@ -139,7 +139,7 @@ async def faq_receive_question(message: Message, state: FSMContext):
     u = message.from_user
     display = u.full_name or u.first_name or "User"
     uname = f"@{u.username}" if u.username else "—"
-
+    phone = get_phone(u.id , default="None")
     if not FAQ_GROUP_IDS:
         await message.answer("⚠️ FAQ guruhi sozlanmagan. Administratorga murojaat qiling.")
         await state.clear()
@@ -150,6 +150,7 @@ async def faq_receive_question(message: Message, state: FSMContext):
         "🆕 <b>Yangi savol</b>\n"
         f"👤 <b>User</b>: {display} ({uname}, id=<code>{u.id}</code>)\n"
         f"🌐 <b>Lang</b>: {lang}\n\n"
+        f"📞 <b>Phone</b>: {phone}\n\n" 
         f"❓ <b>Question</b>:\n{text}\n\n"
         "ℹ️ <i>Javob berish uchun shu xabarga <b>reply</b> yozing — foydalanuvchiga DM sifatida yuboriladi.</i>"
     )
