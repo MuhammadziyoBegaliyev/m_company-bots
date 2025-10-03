@@ -26,8 +26,10 @@ BOOKINGS: Dict[int, Dict[str, Any]] = {}
 BOOKING_SEQ = itertools.count(1001)  # booking id generator
 PENDING_RETIME: Dict[int, int] = {}  # user_id -> booking_id for admin retime flow
 
-TIME_RX = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
-
+_TIME_RE = re.compile(
+    r"^\s*(?P<h>[01]?\d|2[0-3])(?::|\.|\s)?(?P<m>[0-5]\d)?\s*(?P<ampm>[ap]m)?\s*$",
+    re.IGNORECASE
+)
 
 # --- FSM states ---
 class AuditFSM(StatesGroup):
