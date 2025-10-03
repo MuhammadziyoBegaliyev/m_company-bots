@@ -8,59 +8,47 @@ import re
 from typing import Dict, Any, List, Tuple
 
 from aiogram import Router, F
-from aiogram.types import (
-    Message, CallbackQuery,
-    InlineKeyboardMarkup, InlineKeyboardButton
-)
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
 from ..locales import L
 from ..storage.memory import get_lang, get_profile
-from ..config import settings  # AUDIT_WEBSITE_URL, ADMIN_GROUP_ID (agar bo'lsa)
+from ..config import settings
 
 router = Router()
 
-# --- In-memory storage (demo) ---
+# --- In-memory (demo) ---
 BOOKINGS: Dict[int, Dict[str, Any]] = {}
 BOOKING_SEQ = itertools.count(1001)
 PENDING_RETIME: Dict[int, int] = {}  # user_id -> booking_id
 
-# --- Time parser (universal) ---
+# --- Time parser ---
 _TIME_RE = re.compile(
     r"^\s*(?P<h>[01]?\d|2[0-3])(?::|\.|\s)?(?P<m>[0-5]\d)?\s*(?P<ampm>[ap]m)?\s*$",
-    re.IGNORECASE
+    re.IGNORECASE,
 )
 
 def _parse_time(text: str) -> str | None:
-    """
-    Kirish misollari: '15:00', '1500', '15 00', '9', '9:30', '9am', '3pm'
-    Chiqish: 'HH:MM'
-    """
     if not text:
         return None
     m = _TIME_RE.match(text.strip())
     if not m:
         return None
-
     h = int(m.group("h"))
     mnt = m.group("m")
     ampm = (m.group("ampm") or "").lower()
-
-    # 12-soat format qo'llab-quvvatlash
     if ampm:
         if h == 12:
             h = 0
         if ampm == "pm":
             h += 12
-
     minute = int(mnt) if mnt is not None else 0
     if not (0 <= h <= 23 and 0 <= minute <= 59):
         return None
-
     return f"{h:02d}:{minute:02d}"
 
-# --- FSM states ---
+# --- FSM ---
 class AuditFSM(StatesGroup):
     BIZ_NAME = State()
     BIZ_DESC = State()
@@ -75,27 +63,39 @@ class AuditFSM(StatesGroup):
 def _t(lang: str) -> dict:
     return L.get(lang, L["uz"])
 
-def _row(*buttons: InlineKeyboardButton) -> List[InlineKeyboardButton]:
-    return [*buttons]
+def _row(*btns: InlineKeyboardButton) -> List[InlineKeyboardButton]:
+    return [*btns]
 
 def _ikb(rows: List[List[InlineKeyboardButton]]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 def _months(lang: str) -> List[Tuple[str, int]]:
     if lang == "ru":
-        names = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]
+        names = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
     elif lang == "en":
-        names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     else:
-        names = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"]
+        names = ["Yan","Fev","Mar","Apr","May","Iyun","Iyul","Avg","Sen","Okt","Noy","Dek"]
     return list(zip(names, range(1, 13)))
 
-def _days_in_month(year: int, month: int) -> int:
-    return calendar.monthrange(year, month)[1]
+def _days_in_month(y: int, m: int) -> int:
+    return calendar.monthrange(y, m)[1]
 
 def _time_slots() -> List[str]:
-    # 08:00 .. 19:00 (inklyuziv)
-    return [f"{h:02d}:00" for h in range(8, 20)]
+    return [f"{h:02d}:00" for h in range(8, 20)]  # 08:00..19:00
+
+def _booked_slots_for_date(year: int, month: int, day: int) -> set[str]:
+    """Faqat admin tasdiqlagan bronlar band hisoblanadi."""
+    taken: set[str] = set()
+    for b in BOOKINGS.values():
+        if b.get("status") == "approved" and b.get("year") == year and b.get("month") == month and b.get("day") == day:
+            t = b.get("time")
+            if t:
+                taken.add(str(t))
+    return taken
+
+def _is_taken(year: int, month: int, day: int, time_s: str) -> bool:
+    return time_s in _booked_slots_for_date(year, month, day)
 
 def _admin_booking_text(t: dict, b: dict) -> str:
     prof = b.get("profile", {})
@@ -125,27 +125,25 @@ def _user_review_text(t: dict, b: dict) -> str:
         f"⏰ <b>Vaqt:</b> {b.get('time')}\n"
     )
 
-# --- Entry from Main Menu reply button ---
+# --- Entry ---
 @router.message(F.text.func(lambda s: s in {L["uz"]["btn_audit"], L["en"]["btn_audit"], L["ru"]["btn_audit"]}))
 async def audit_entry(message: Message):
     lang = get_lang(message.from_user.id, "uz")
     t = _t(lang)
-    kb = _ikb([
-        _row(
-            InlineKeyboardButton(text=t["audit_web"], callback_data="audit:web"),
-            InlineKeyboardButton(text=t["audit_book"], callback_data="audit:book"),
-        )
-    ])
+    kb = _ikb([_row(
+        InlineKeyboardButton(text=t["audit_web"], callback_data="audit:web"),
+        InlineKeyboardButton(text=t["audit_book"], callback_data="audit:book"),
+    )])
     await message.answer(f"<b>{t['audit_title']}</b>\n\n{t['audit_choose']}", reply_markup=kb)
 
-# --- Website branch ---
+# --- Website ---
 @router.callback_query(F.data == "audit:web")
 async def audit_web(cb: CallbackQuery):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
     url = getattr(settings, "AUDIT_WEBSITE_URL", "https://example.com/audit")
     kb = _ikb([
         _row(InlineKeyboardButton(text=t["more_btn"], url=url)),
-        _row(InlineKeyboardButton(text=_t(lang)["back_btn"], callback_data="audit:back")),
+        _row(InlineKeyboardButton(text=t["back_btn"], callback_data="audit:back")),
     ])
     await cb.answer()
     await cb.message.answer(t["audit_web_desc"], reply_markup=kb, parse_mode="HTML")
@@ -153,12 +151,10 @@ async def audit_web(cb: CallbackQuery):
 @router.callback_query(F.data == "audit:back")
 async def audit_back(cb: CallbackQuery):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
-    kb = _ikb([
-        _row(
-            InlineKeyboardButton(text=t["audit_web"], callback_data="audit:web"),
-            InlineKeyboardButton(text=t["audit_book"], callback_data="audit:book"),
-        )
-    ])
+    kb = _ikb([_row(
+        InlineKeyboardButton(text=t["audit_web"], callback_data="audit:web"),
+        InlineKeyboardButton(text=t["audit_book"], callback_data="audit:book"),
+    )])
     await cb.answer()
     await cb.message.answer(f"<b>{t['audit_title']}</b>\n\n{t['audit_choose']}", reply_markup=kb)
 
@@ -168,7 +164,7 @@ async def audit_book(cb: CallbackQuery, state: FSMContext):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
     await cb.answer()
     await state.clear()
-    await state.update_data(lang=lang, user_id=cb.from_user.id, chat_id=cb.message.chat.id)
+    await state.update_data(lang=lang, user_id=cb.from_user.id, chat_id=cb.message.chat.id, status="pending")
     await cb.message.answer(t["aud_ask_biz_name"])
     await state.set_state(AuditFSM.BIZ_NAME)
 
@@ -189,26 +185,22 @@ async def aud_take_desc(message: Message, state: FSMContext):
     if not desc:
         await message.answer(t["aud_ask_biz_desc"]); return
     await state.update_data(biz_desc=desc)
-
-    kb = _ikb([
-        _row(
-            InlineKeyboardButton(text=t["aud_rev_low"], callback_data="aud:rev:low"),
-            InlineKeyboardButton(text=t["aud_rev_mid"], callback_data="aud:rev:mid"),
-            InlineKeyboardButton(text=t["aud_rev_high"], callback_data="aud:rev:high"),
-        )
-    ])
+    kb = _ikb([_row(
+        InlineKeyboardButton(text=t["aud_rev_low"],  callback_data="aud:rev:low"),
+        InlineKeyboardButton(text=t["aud_rev_mid"],  callback_data="aud:rev:mid"),
+        InlineKeyboardButton(text=t["aud_rev_high"], callback_data="aud:rev:high"),
+    )])
     await message.answer(t["aud_ask_revenue"], reply_markup=kb)
     await state.set_state(AuditFSM.REVENUE)
 
 @router.callback_query(AuditFSM.REVENUE, F.data.startswith("aud:rev:"))
 async def aud_take_revenue(cb: CallbackQuery, state: FSMContext):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
-    rev_key = cb.data.split(":")[-1]
+    key = cb.data.split(":")[-1]
     rev_map = {"low": t["aud_rev_low"], "mid": t["aud_rev_mid"], "high": t["aud_rev_high"]}
-    await state.update_data(revenue=rev_map.get(rev_key, rev_key))
+    await state.update_data(revenue=rev_map.get(key, key))
     await cb.answer()
 
-    # Months
     months = _months(lang)
     rows, row = [], []
     for label, m in months:
@@ -244,10 +236,16 @@ async def aud_take_day(cb: CallbackQuery, state: FSMContext):
     await state.update_data(day=day)
     await cb.answer()
 
-    # Time slots
+    data = await state.get_data()
+    taken = _booked_slots_for_date(data["year"], data["month"], day)
+
+    # time grid with locked slots
     rows, row = [], []
     for s in _time_slots():
-        row.append(InlineKeyboardButton(text=s, callback_data=f"aud:time:{s}"))
+        if s in taken:
+            row.append(InlineKeyboardButton(text=f"🔒 {s}", callback_data="aud:noop"))
+        else:
+            row.append(InlineKeyboardButton(text=s, callback_data=f"aud:time:{s}"))
         if len(row) == 4:
             rows.append(_row(*row)); row = []
     if row: rows.append(_row(*row))
@@ -255,10 +253,16 @@ async def aud_take_day(cb: CallbackQuery, state: FSMContext):
     await cb.message.answer(t["aud_pick_time"], reply_markup=_ikb(rows))
     await state.set_state(AuditFSM.TIME)
 
+@router.callback_query(F.data == "aud:noop")
+async def aud_noop(cb: CallbackQuery):
+    lang = get_lang(cb.from_user.id, "uz")
+    await cb.answer(_t(lang).get("aud_slot_taken", "Bu vaqt band."), show_alert=False)
+
 @router.callback_query(AuditFSM.TIME, F.data.startswith("aud:time:"))
 async def aud_take_time(cb: CallbackQuery, state: FSMContext):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
-    val = cb.data.split(":")[-1]
+    # ⚠️ to'g'ri ajratish: 'aud:time:08:00' -> '08:00'
+    _, _, val = cb.data.partition("aud:time:")
     await cb.answer()
 
     if val == "manual":
@@ -266,7 +270,11 @@ async def aud_take_time(cb: CallbackQuery, state: FSMContext):
         await state.set_state(AuditFSM.TIME_MANUAL)
         return
 
-    # slot vaqtlar allaqachon HH:MM
+    data = await state.get_data()
+    if _is_taken(data["year"], data["month"], data["day"], val):
+        await cb.message.answer(t.get("aud_slot_taken", "Bu vaqt band. Iltimos, boshqa vaqt tanlang."))
+        return
+
     await state.update_data(time=val)
     await _show_review(cb.message, state, lang)
 
@@ -276,34 +284,34 @@ async def aud_take_time_manual(message: Message, state: FSMContext):
     ts = _parse_time(message.text or "")
     if not ts:
         await message.answer(t["aud_time_invalid"], parse_mode="HTML"); return
-
-    # 08:00–19:00 chegarasi (19:00 dan keyin mumkin emas)
     hh, mm = map(int, ts.split(":"))
     minutes = hh * 60 + mm
     if not (8 * 60 <= minutes <= 19 * 60):
         await message.answer(t["aud_time_invalid"], parse_mode="HTML"); return
 
+    data = await state.get_data()
+    if _is_taken(data["year"], data["month"], data["day"], ts):
+        await message.answer(t.get("aud_slot_taken", "Bu vaqt band. Iltimos, boshqa vaqt tanlang."))
+        return
+
     await state.update_data(time=ts)
     await _show_review(message, state, lang)
 
-async def _show_review(msg_or_cb_message: Message, state: FSMContext, lang: str):
+async def _show_review(msg: Message, state: FSMContext, lang: str):
     t = _t(lang)
     data = await state.get_data()
-    # Profil va foydalanuvchi identifikatlari
-    prof = get_profile(data.get("user_id") or msg_or_cb_message.chat.id) or {}
-    prof.setdefault("user_id", data.get("user_id") or msg_or_cb_message.chat.id)
+    prof = get_profile(data.get("user_id") or msg.chat.id) or {}
+    prof.setdefault("user_id", data.get("user_id") or msg.chat.id)
     data.update(profile=prof, lang=lang)
     await state.update_data(**data)
 
     text = _user_review_text(t, data)
-    kb = _ikb([
-        _row(
-            InlineKeyboardButton(text=t["aud_review_confirm"], callback_data="aud:confirm"),
-            InlineKeyboardButton(text=t["aud_review_edit"],    callback_data="aud:edit"),
-            InlineKeyboardButton(text=t["aud_review_cancel"],  callback_data="aud:cancel"),
-        )
-    ])
-    await msg_or_cb_message.answer(text, reply_markup=kb, parse_mode="HTML")
+    kb = _ikb([_row(
+        InlineKeyboardButton(text=t["aud_review_confirm"], callback_data="aud:confirm"),
+        InlineKeyboardButton(text=t["aud_review_edit"],    callback_data="aud:edit"),
+        InlineKeyboardButton(text=t["aud_review_cancel"],  callback_data="aud:cancel"),
+    )])
+    await msg.answer(text, reply_markup=kb, parse_mode="HTML")
     await state.set_state(AuditFSM.REVIEW)
 
 # --- Review actions ---
@@ -335,23 +343,17 @@ async def aud_edit_switch(cb: CallbackQuery, state: FSMContext):
     part = cb.data.split(":")[-1]
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
     await cb.answer()
-
     if part == "name":
-        await cb.message.answer(t["aud_ask_biz_name"])
-        await state.set_state(AuditFSM.BIZ_NAME)
+        await cb.message.answer(t["aud_ask_biz_name"]); await state.set_state(AuditFSM.BIZ_NAME)
     elif part == "desc":
-        await cb.message.answer(t["aud_ask_biz_desc"])
-        await state.set_state(AuditFSM.BIZ_DESC)
+        await cb.message.answer(t["aud_ask_biz_desc"]); await state.set_state(AuditFSM.BIZ_DESC)
     elif part == "rev":
-        kb = _ikb([
-            _row(
-                InlineKeyboardButton(text=t["aud_rev_low"], callback_data="aud:rev:low"),
-                InlineKeyboardButton(text=t["aud_rev_mid"], callback_data="aud:rev:mid"),
-                InlineKeyboardButton(text=t["aud_rev_high"], callback_data="aud:rev:high"),
-            )
-        ])
-        await cb.message.answer(t["aud_ask_revenue"], reply_markup=kb)
-        await state.set_state(AuditFSM.REVENUE)
+        kb = _ikb([_row(
+            InlineKeyboardButton(text=t["aud_rev_low"],  callback_data="aud:rev:low"),
+            InlineKeyboardButton(text=t["aud_rev_mid"],  callback_data="aud:rev:mid"),
+            InlineKeyboardButton(text=t["aud_rev_high"], callback_data="aud:rev:high"),
+        )])
+        await cb.message.answer(t["aud_ask_revenue"], reply_markup=kb); await state.set_state(AuditFSM.REVENUE)
     elif part == "dt":
         months = _months(lang)
         rows, row = [], []
@@ -369,73 +371,71 @@ async def aud_confirm(cb: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     await cb.answer("✅")
 
-    # Booking ID va qo'shimcha identifikatorlar
     bid = next(BOOKING_SEQ)
-    data["booking_id"] = bid
-    data["user_id"] = data.get("user_id") or cb.from_user.id
-    data["chat_id"] = data.get("chat_id") or cb.message.chat.id
-    data["profile"] = get_profile(data["user_id"]) or {}
+    data.update({
+        "booking_id": bid,
+        "user_id": data.get("user_id") or cb.from_user.id,
+        "chat_id": data.get("chat_id") or cb.message.chat.id,
+        "profile": get_profile(cb.from_user.id) or {},
+        "lang": lang,
+        "status": "pending",
+    })
     data["profile"].setdefault("user_id", data["user_id"])
-    data["lang"] = lang
     BOOKINGS[bid] = data
 
     await cb.message.answer(t["aud_sent_to_admins"])
     await state.clear()
 
-    # Admin guruhiga yuborish
     text = _admin_booking_text(t, data)
-    kb = _ikb([
-        _row(
-            InlineKeyboardButton(text=t["aud_admin_approve"], callback_data=f"audadmin:ok:{bid}"),
-            InlineKeyboardButton(text=t["aud_admin_retime"],  callback_data=f"audadmin:rt:{bid}"),
-            InlineKeyboardButton(text=t["aud_admin_cancel"],  callback_data=f"audadmin:cn:{bid}"),
-        )
-    ])
+    kb = _ikb([_row(
+        InlineKeyboardButton(text=t["aud_admin_approve"], callback_data=f"audadmin:ok:{bid}"),
+        InlineKeyboardButton(text=t["aud_admin_retime"],  callback_data=f"audadmin:rt:{bid}"),
+        InlineKeyboardButton(text=t["aud_admin_cancel"],  callback_data=f"audadmin:cn:{bid}"),
+    )])
     await cb.message.bot.send_message(
         chat_id=getattr(settings, "ADMIN_GROUP_ID", getattr(settings, "faq_group_id", -1001234567890)),
-        text=text,
-        reply_markup=kb,
-        parse_mode="HTML",
+        text=text, reply_markup=kb, parse_mode="HTML"
     )
 
-# --- Admin actions in group ---
+# --- Admin actions ---
 @router.callback_query(F.data.startswith("audadmin:"))
 async def admin_actions(cb: CallbackQuery):
     parts = cb.data.split(":")
     action, bid = parts[1], int(parts[2])
     booking = BOOKINGS.get(bid)
     if not booking:
-        await cb.answer("Not found", show_alert=True)
-        return
+        await cb.answer("Not found", show_alert=True); return
 
     user_id = booking.get("user_id")
     lang = booking.get("lang", "uz")
     t = _t(lang)
-
     await cb.answer()
 
     if action == "ok":
+        booking["status"] = "approved"   # ✅ endi slot band hisoblanadi
         if user_id:
             await cb.message.bot.send_message(user_id, t["aud_user_approved"])
         await cb.message.edit_reply_markup(reply_markup=None)
 
     elif action == "rt":
+        booking["status"] = "retime_requested"
         if user_id:
             PENDING_RETIME[user_id] = bid
             await cb.message.bot.send_message(user_id, t["aud_user_retime"], parse_mode="HTML")
         await cb.message.edit_reply_markup(reply_markup=None)
 
     elif action == "cn":
+        booking["status"] = "canceled"
         if user_id:
             await cb.message.bot.send_message(user_id, t["aud_user_canceled"])
         await cb.message.edit_reply_markup(reply_markup=None)
 
-# --- User replies with new time (admin retime flow) ---
+# --- User sends new time after admin retime request ---
 @router.message(F.text)
 async def handle_retime_if_pending(message: Message):
     user_id = message.from_user.id
     if user_id not in PENDING_RETIME:
-        return  # boshqa handlerlar davom etadi
+        return
 
     bid = PENDING_RETIME.pop(user_id)
     booking = BOOKINGS.get(bid)
@@ -444,23 +444,20 @@ async def handle_retime_if_pending(message: Message):
 
     ts = _parse_time(message.text or "")
     if not ts:
-        # noto'g'ri format — foydalanuvchidan qayta so'ramaymiz; admin oqimi bu
-        await message.answer("❗️ Noto‘g‘ri vaqt. Namuna: 14:00")
-        return
+        await message.answer("❗️ Noto‘g‘ri vaqt. Namuna: 14:00"); return
 
-    # Chegara: 08:00–19:00
     hh, mm = map(int, ts.split(":"))
     minutes = hh * 60 + mm
     if not (8 * 60 <= minutes <= 19 * 60):
-        await message.answer("❗️ Vaqt 08:00–19:00 oralig‘ida bo‘lishi kerak.")
-        return
+        await message.answer("❗️ Vaqt 08:00–19:00 oralig‘ida bo‘lishi kerak."); return
+
+    if _is_taken(booking["year"], booking["month"], booking["day"], ts):
+        await message.answer("❗️ Bu vaqt allaqachon band. Iltimos, boshqa vaqt tanlang."); return
 
     booking["time"] = ts
+    booking["status"] = "pending"
 
-    # Userga tasdiq
     await message.answer("✅ Yangi vaqt qabul qilindi.")
-
-    # Adminga xabar
     await message.bot.send_message(
         chat_id=getattr(settings, "ADMIN_GROUP_ID", getattr(settings, "faq_group_id", -1001234567890)),
         text=f"♻️ Booking #{bid} — user updated time to {booking['time']}",
