@@ -26,6 +26,12 @@ ALL_ROUTERS = (
     # about.router,
 )
 
+__all__ = [
+    "start", "lang", "onboarding", "main_menu",
+    "services", "projects", "faq", "contact", "about", "audit",
+]
+
+
 def setup(dp: Dispatcher) -> None:
     """Routerlarni dispetcherga faqat bir marta ulaydi."""
     for r in ALL_ROUTERS:

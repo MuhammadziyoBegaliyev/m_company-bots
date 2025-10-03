@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
     # --- URL/yo'l sozlamalari ---
     AUDIT_WEBSITE_URL: str = Field(
-        default="https://mcompany.uz/audit",
+        default="https://mcompany.uz/audit/starter/",
         validation_alias=AliasChoices("AUDIT_WEBSITE_URL", "audit_website_url"),
         description="Audit xizmat sahifasi",
     )
@@ -133,7 +133,7 @@ class Settings(BaseSettings):
         Bo'sh bo'lsa default qaytadi.
         """
         if not v:
-            return "https://mcompany.uz/audit"
+            return "https://mcompany.uz/audit/starter/"
         v = str(v).strip()
         if not re.match(r"^https?://", v, flags=re.IGNORECASE):
             v = "https://" + v
