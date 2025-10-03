@@ -18,8 +18,8 @@ from .handlers import projects as projects_handlers
 from .handlers import faq as faq_handlers
 from .handlers import contact as contact_handlers
 from .handlers import about as about_handlers
-from .handlers import audit as audit_handlers  # ← faqat 1 marta!
-
+from .handlers import audit as audit_handlers  
+from .handlers import admin as admin_handlers #admin panel 
 def include_once(dp: Dispatcher, router, name: str):
     """Router allaqachon ulangan bo‘lsa xatoga uchramaslik uchun himoya."""
     try:
@@ -55,6 +55,7 @@ async def main():
     include_once(dp, contact_handlers.router, "contact")
     include_once(dp, about_handlers.router, "about")
     include_once(dp, audit_handlers.router, "audit")
+    dp.include_router(admin_handlers.router)
 
     logger.info("Bot polling start")
     await dp.start_polling(bot)

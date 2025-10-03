@@ -227,6 +227,27 @@ L = {
         "audit_site_text": "Bizning audit xizmatimiz haqida qisqacha ma’lumot.",
         "audit_more_btn": "Batafsil",
 
+        ###ADMIN
+        "adm_send_msg": "Xabar yuborish",
+        "adm_users_list": "Foydalanuvchilar roʻyxati",
+        "adm_send_choose": "Qaysi turdagi tarqatma?",
+        "adm_send_one": "1 foydalanuvchiga",
+        "adm_send_all": "Hammaga yuborish",
+        "adm_ask_user": "Foydalanuvchini yuboring:\n- xabarini forward qiling yoki\n- @username yoki user_id kiriting",
+        "adm_send_media": "Rasm yoki video jo‘nating (ixtiyoriy).",
+        "adm_skip_or_send": "Yoki ⏭ O‘tkazib yuborish tugmasini bosing:",
+        "skip_btn": "O‘tkazib yuborish",
+        "adm_ask_text": "Matn/caption kiriting (ixtiyoriy).",
+        "send_btn": "Yuborish",
+        "edit_btn": "O‘zgartirish",
+        "cancel_btn": "Bekor qilish",
+        "adm_broadcast_canceled": "Tarqatma bekor qilindi.",
+        "adm_broadcast_done": "Tarqatma yakunlandi. ✅: {ok}, ❌: {fail}",
+        "adm_user_not_found": "Foydalanuvchi topilmadi.",
+        "adm_user_show_btn": "Foydalanuvchi ko‘rish",
+        "adm_find_prompt": "Forward / @username / user_id yuboring:",
+        "back_btn": "◀️ Orqaga",
+
 
     },
 

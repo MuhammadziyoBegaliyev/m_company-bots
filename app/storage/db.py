@@ -115,4 +115,52 @@ class DB:
         return bool(u.get("onboarded", 0))
 
 
+
+     def get_all_users(self, offset: int = 0, limit: int = 100) -> list[dict]:
+        """
+        Foydalanuvchilarni yangi->eski tartibda qaytaradi.
+        user_id, username, name, phone, lang, onboarded, last_feature, created_at, last_seen kabi maydonlar bo‘lishi ma‘qul.
+        """
+        cur = self.conn.cursor()
+        cur.execute("""
+            SELECT user_id, username, name, phone, lang, onboarded, last_feature, created_at, last_seen
+            FROM users
+            ORDER BY COALESCE(last_seen, created_at) DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        rows = cur.fetchall()
+        res = []
+        for r in rows:
+            res.append({
+                "user_id": r[0],
+                "username": r[1],
+                "name": r[2],
+                "phone": r[3],
+                "lang": r[4],
+                "onboarded": bool(r[5]) if r[5] is not None else False,
+                "last_feature": r[6],
+                "created_at": r[7],
+                "last_seen": r[8],
+            })
+        return res
+
+    def find_user_by_username(self, username: str) -> dict | None:
+        cur = self.conn.cursor()
+        cur.execute("""
+            SELECT user_id, username, name, phone, lang, onboarded, last_feature
+            FROM users WHERE LOWER(username)=LOWER(?)
+        """, (username,))
+        r = cur.fetchone()
+        if not r:
+            return None
+        return {
+            "user_id": r[0],
+            "username": r[1],
+            "name": r[2],
+            "phone": r[3],
+            "lang": r[4],
+            "onboarded": bool(r[5]) if r[5] is not None else False,
+            "last_feature": r[6],
+        }
+
 db = DB()
