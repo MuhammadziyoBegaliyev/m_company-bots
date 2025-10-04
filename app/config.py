@@ -1,46 +1,62 @@
+# -*- coding: utf-8 -*-
 # app/config.py
-from typing import List, Optional, Union
-import re
 
-from pydantic import Field, AliasChoices, field_validator
+from typing import List, Optional, Union, Any
+import re
+import json
+
+from pydantic import Field, AliasChoices, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# --- Ichki yordamchi: CSV -> List[int] ---
-def _to_int_list(v) -> List[int]:
+def _to_int_list(v: Any) -> List[int]:
     """
     Har xil ko‘rinishdagi qiymatni int ro‘yxatiga aylantiradi.
-    Qo‘llab-quvvatlaydi: int | str("111, 222, -100333") | list/tuple
+    Qo‘llab-quvvatlaydi:
+      - int
+      - list/tuple (raqamlar yoki raqam-str)
+      - str: "111, 222, -100333" yoki "[111, 222]" (JSON ham)
     """
     if v is None or v == "":
         return []
-    if isinstance(v, int):
-        return [v]
     if isinstance(v, (list, tuple)):
         out: List[int] = []
         for x in v:
+            sx = str(x).strip().strip('"').strip("'")
+            if sx.lstrip("+-").isdigit():
+                out.append(int(sx))
+        return out
+    if isinstance(v, int):
+        return [v]
+    if isinstance(v, str):
+        s = v.strip()
+        # JSON bo‘lishi mumkin
+        if s.startswith("[") and s.endswith("]"):
             try:
-                out.append(int(str(x).strip().strip('"').strip("'")))
+                arr = json.loads(s)
+                return _to_int_list(arr)
             except Exception:
                 pass
-        return out
-    if isinstance(v, str):
-        s = v.strip().strip('"').strip("'")
-        if not s:
-            return []
+        # CSV
         out: List[int] = []
         for part in s.split(","):
-            part = part.strip()
-            if not part:
-                continue
-            # signed integer (ixtiyoriy minus bilan)
-            if re.match(r"^[-+]?\d+$", part):
+            part = part.strip().strip('"').strip("'")
+            if part and re.match(r"^[-+]?\d+$", part):
                 out.append(int(part))
         return out
     return []
 
 
 class Settings(BaseSettings):
+    """
+    .env namuna:
+      BOT_TOKEN=123:ABC
+      ADMIN_IDS=6824528065,7567219498
+      FAQ_GROUP_ID=-1002976616999
+      ADMIN_GROUP_ID=-1002976616999
+      AUDIT_WEBSITE_URL=https://mcompany.uz/audit/starter/
+    """
+
     # === Majburiy ===
     BOT_TOKEN: str = Field(
         ...,
@@ -48,33 +64,27 @@ class Settings(BaseSettings):
         description="Telegram bot tokeni",
     )
 
-    # === Ixtiyoriy ro‘yxatlar ===
-    # Admin user ID(lar)i (mass-message, moderatsiya va hokazo)
-    admin_ids: List[int] = Field(
-        default_factory=list,
+    # === Env dagi raw qiymatlar (string) — keyin pars qilamiz ===
+    admin_ids_env: Optional[str] = Field(
+        default=None,
         validation_alias=AliasChoices("ADMIN_IDS", "admin_ids"),
-        description="Admin foydalanuvchilar ro‘yxati",
+        description="Adminlar ro‘yxati (CSV yoki JSON)",
+    )
+    faq_group_ids_env: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("FAQ_GROUP_ID", "faq_group_id", "FAQ_GROUP_IDS", "faq_group_ids"),
+        description="FAQ guruh(lar)i (CSV/JSON)",
+    )
+    admin_group_ids_env: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("ADMIN_GROUP_ID", "admin_group_id", "ADMIN_GROUP_IDS", "admin_group_ids"),
+        description="Audit/bron guruh(lar)i (CSV/JSON)",
     )
 
-    # FAQ yuboriladigan guruh(lar)
-    faq_group_ids: List[int] = Field(
-        default_factory=list,
-        validation_alias=AliasChoices(
-            "FAQ_GROUP_ID", "faq_group_id",
-            "FAQ_GROUP_IDS", "faq_group_ids"
-        ),
-        description="FAQ xabarlari yuboriladigan guruh ID(lar)i",
-    )
-
-    # Audit/booking bildirishnomalari yuboriladigan guruh(lar)
-    admin_group_ids: List[int] = Field(
-        default_factory=list,
-        validation_alias=AliasChoices(
-            "ADMIN_GROUP_ID", "admin_group_id",
-            "ADMIN_GROUP_IDS", "admin_group_ids"
-        ),
-        description="Audit/bron bildirishnomalari uchun guruh(lar)",
-    )
+    # === Biz ishlatadigan tayyor ro‘yxatlar ===
+    admin_ids: List[int] = Field(default_factory=list)
+    faq_group_ids: List[int] = Field(default_factory=list)
+    admin_group_ids: List[int] = Field(default_factory=list)
 
     # === URL / yo‘l sozlamalari ===
     AUDIT_WEBSITE_URL: str = Field(
@@ -83,7 +93,6 @@ class Settings(BaseSettings):
         description="Audit xizmat sahifasi",
     )
 
-    # Ma’lumotlar bazasi ulanish satri (agar ishlatilyapti)
     DATABASE_URL: str = Field(
         default="sqlite:///./app/storage/app.db",
         validation_alias=AliasChoices("DATABASE_URL", "database_url"),
@@ -109,7 +118,6 @@ class Settings(BaseSettings):
         description="Bot uchun vaqt mintaqasi",
     )
 
-    # Webhook (kelajakda kerak bo‘lishi mumkin)
     USE_WEBHOOK: bool = Field(
         default=False,
         validation_alias=AliasChoices("USE_WEBHOOK", "use_webhook"),
@@ -124,24 +132,15 @@ class Settings(BaseSettings):
     )
 
     # === Validatorlar ===
-    @field_validator("admin_ids", "faq_group_ids", "admin_group_ids", mode="before")
-    @classmethod
-    def _parse_csv_ints(cls, v):
-        return _to_int_list(v)
-
     @field_validator("AUDIT_WEBSITE_URL", mode="before")
     @classmethod
     def _normalize_url(cls, v: Union[str, None]) -> str:
-        """
-        AUDIT_WEBSITE_URL http/https bilan boshlansin.
-        Bo‘sh bo‘lsa default qaytadi.
-        """
         if not v:
             return "https://mcompany.uz/audit/starter/"
-        v = str(v).strip()
-        if not re.match(r"^https?://", v, flags=re.IGNORECASE):
-            v = "https://" + v
-        return v
+        s = str(v).strip()
+        if not re.match(r"^https?://", s, flags=re.IGNORECASE):
+            s = "https://" + s
+        return s
 
     @field_validator("DEFAULT_LANG", mode="before")
     @classmethod
@@ -149,23 +148,32 @@ class Settings(BaseSettings):
         v = (v or "uz").lower().strip()
         return v if v in {"uz", "en", "ru"} else "uz"
 
+    # Raw maydonlardan haqiqiy ro‘yxatlarni yig‘ib qo‘yamiz
+    @model_validator(mode="after")
+    def _build_lists_from_env(self):
+        if not self.admin_ids and self.admin_ids_env:
+            self.admin_ids = _to_int_list(self.admin_ids_env)
+
+        if not self.faq_group_ids and self.faq_group_ids_env:
+            self.faq_group_ids = _to_int_list(self.faq_group_ids_env)
+
+        if not self.admin_group_ids and self.admin_group_ids_env:
+            self.admin_group_ids = _to_int_list(self.admin_group_ids_env)
+
+        return self
+
     # === Backward-compat properties (eski kodni qo‘llab-quvvatlash) ===
     @property
     def ADMIN_GROUP_ID(self) -> Optional[int]:
-        """
-        Eski handlerlarda `settings.ADMIN_GROUP_ID` ishlatilgan.
-        Ro‘yxatdan birinchisini qaytaramiz (yo‘q bo‘lsa None).
-        """
+        """Eski handlerlarda settings.ADMIN_GROUP_ID ishlatilgan bo‘lishi mumkin."""
         return self.admin_group_ids[0] if self.admin_group_ids else None
 
     @property
     def faq_group_id(self) -> Optional[int]:
-        """
-        Eski kodlar uchun bitta qiymat.
-        """
+        """Eski kodlar uchun yagona qiymatga mos props."""
         return self.faq_group_ids[0] if self.faq_group_ids else None
 
-    # Qo‘lay yordamchi
+    # Qulay yordamchi
     def is_admin(self, user_id: int) -> bool:
         return user_id in self.admin_ids
 

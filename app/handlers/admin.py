@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import annotations
 
+
+from __future__ import annotations
 import asyncio
 from typing import Dict, Any, List, Optional
 
@@ -19,42 +19,16 @@ from ..locales import L
 from ..storage.memory import get_lang
 from .audit import BOOKINGS  # bronlar holati uchun
 
-# ixtiyoriy: DB mavjud bo'lmasa ham ishlasin
-try:
-    from ..storage.db import db
-except Exception:
-    db = None  # type: ignore
-
 router = Router()
 
-# ---------------------- HELPERS ----------------------
+# ---------------------- UTIL/HELPERS ----------------------
 
 def _is_admin(user_id: int) -> bool:
+    # settings.is_admin ham bor, lekin moslik uchun shu qoladi
     return user_id in (settings.admin_ids or [])
 
 def _t(lang: str) -> dict:
-    # Fallbacklar bilan
-    base = L.get(lang, L.get("uz", {})).copy()
-    base.setdefault("adm_send_msg", "Xabar yuborish")
-    base.setdefault("adm_users_list", "Foydalanuvchilar ro‘yxati")
-    base.setdefault("adm_send_choose", "Qaysi turdagi yuborishni tanlang:")
-    base.setdefault("adm_send_one", "1 foydalanuvchiga")
-    base.setdefault("adm_send_all", "Hammaga")
-    base.setdefault("adm_ask_user", "Foydalanuvchini kiriting: ID / @username / forward qiling")
-    base.setdefault("adm_send_media", "Rasm yoki video yuboring (ixtiyoriy).")
-    base.setdefault("adm_skip_or_send", "Yoki ⏭️ O‘tkazib yuborish tugmasini bosing.")
-    base.setdefault("skip_btn", "O‘tkazib yuborish")
-    base.setdefault("adm_ask_text", "Endi matnni yuboring:")
-    base.setdefault("send_btn", "Yuborish")
-    base.setdefault("edit_btn", "O‘zgartirish")
-    base.setdefault("cancel_btn", "Bekor qilish")
-    base.setdefault("adm_broadcast_canceled", "Bekor qilindi.")
-    base.setdefault("adm_broadcast_done", "Yuborildi: {ok} ta ✅ | Xato: {fail} ta ❗️")
-    base.setdefault("adm_user_not_found", "Foydalanuvchi topilmadi.")
-    base.setdefault("adm_find_prompt", "ID yoki @username yuboring (yoki forward qiling).")
-    base.setdefault("adm_user_show_btn", "Foydalanuvchini ko‘rish")
-    base.setdefault("back_btn", "◀️ Orqaga")
-    return base
+    return L.get(lang, L["uz"])
 
 def _ikb(rows: List[List[InlineKeyboardButton]]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -65,9 +39,16 @@ def _row(*btns: InlineKeyboardButton) -> List[InlineKeyboardButton]:
 def _btn(text: str, data: str) -> InlineKeyboardButton:
     return InlineKeyboardButton(text=text, callback_data=data)
 
-def _lang(obj: Message | CallbackQuery) -> str:
-    uid = obj.from_user.id
+def _lang(cb_or_msg) -> str:
+    uid = cb_or_msg.from_user.id if isinstance(cb_or_msg, CallbackQuery) else cb_or_msg.from_user.id
     return get_lang(uid, "uz")
+
+# DB helperlar
+try:
+    from ..storage.db import db
+except Exception:
+    db = None  # type: ignore
+
 
 def _user_has_approved_booking(user_id: int) -> bool:
     for b in BOOKINGS.values():
@@ -76,6 +57,7 @@ def _user_has_approved_booking(user_id: int) -> bool:
         if uid == user_id and b.get("status") == "approved":
             return True
     return False
+
 
 def _user_card(u: dict) -> str:
     id_ = u.get("user_id") or u.get("id")
@@ -97,35 +79,45 @@ def _user_card(u: dict) -> str:
         "—" * 12
     )
 
-# ---------------------- DIAGNOSTIKA ----------------------
 
-@router.message(Command("id"))
-async def show_my_id(message: Message):
-    await message.answer(
-        f"🆔 Sizning ID: <code>{message.from_user.id}</code>\n"
-        f"👮 ADMIN_IDS: <code>{settings.admin_ids}</code>"
-    )
+# --- Admin emaslar uchun xabarnoma ---
+async def _deny_admin_access(obj: Message | CallbackQuery):
+    lang = _lang(obj)
+    t = _t(lang)
+    title = t.get("adm_denied_title", "⛔ Siz admin emassiz")
+    body  = t.get("adm_denied_text", "Bu bo‘lim faqat administratorlar uchun.")
+    if isinstance(obj, CallbackQuery):
+        # Alert ochiladi va qo‘shimcha matn chatga ham yoziladi
+        try:
+            await obj.answer(title, show_alert=True)
+        except Exception:
+            pass
+        await obj.message.answer(body)
+    else:
+        await obj.answer(f"{title}\n\n{body}")
+
 
 # ---------------------- ADMIN MENU ----------------------
 
 @router.message(Command("admin"))
 async def admin_entry(message: Message):
     if not _is_admin(message.from_user.id):
-        # jim turish — ili quyidagini ochsangiz ham bo'ladi:
-        # await message.answer("⛔️ Siz admin emassiz.")
+        await _deny_admin_access(message)
         return
-    t = _t(_lang(message))
+
+    lang = _lang(message); t = _t(lang)
     kb = _ikb([
         _row(_btn("📣 " + t["adm_send_msg"], "adm:send")),
         _row(_btn("👥 " + t["adm_users_list"], "adm:users:0")),  # 0-sahifa
     ])
     await message.answer("🛠 <b>Admin panel</b>", reply_markup=kb, parse_mode="HTML")
 
+
 # ---------------------- SEND FLOW ----------------------
 
 class SendFSM(StatesGroup):
     TARGET = State()      # "one" | "all"
-    ONE_USER = State()    # id/username/forward (faqat SEND oqimi uchun)
+    ONE_USER = State()    # id/username/forward
     MEDIA = State()       # photo/video optional
     TEXT = State()        # caption or message text
     PREVIEW = State()
@@ -140,7 +132,7 @@ def _send_menu_kb(t: dict) -> InlineKeyboardMarkup:
 @router.callback_query(F.data == "adm:send")
 async def adm_send(cb: CallbackQuery, state: FSMContext):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
     t = _t(_lang(cb))
     await cb.answer()
     await state.clear()
@@ -149,7 +141,8 @@ async def adm_send(cb: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.in_({"adm:send:one", "adm:send:all"}))
 async def adm_send_target(cb: CallbackQuery, state: FSMContext):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
+
     t = _t(_lang(cb)); await cb.answer()
     target = "one" if cb.data.endswith(":one") else "all"
     await state.update_data(target=target, media=None, text=None)
@@ -161,17 +154,16 @@ async def adm_send_target(cb: CallbackQuery, state: FSMContext):
         await cb.message.answer(t["adm_send_media"])
         await cb.message.answer(
             t["adm_skip_or_send"],
-            reply_markup=_ikb([_row(_btn("⏭ " + t["skip_btn"], "adm:skip_media"))])
+            reply_markup=_ikb([_row(_btn("⏭ " + t["skip_btn"], "adm:skip_media"))]),
         )
         await state.set_state(SendFSM.MEDIA)
 
 @router.message(SendFSM.ONE_USER)
 async def adm_pick_one_user(message: Message, state: FSMContext):
-    # faqat SEND oqimi uchun
     if not _is_admin(message.from_user.id):
-        return
-    t = _t(_lang(message))
+        await _deny_admin_access(message); return
 
+    lang = _lang(message); t = _t(lang)
     user_id: Optional[int] = None
     txt = (message.text or "").strip()
 
@@ -192,14 +184,14 @@ async def adm_pick_one_user(message: Message, state: FSMContext):
     await message.answer(t["adm_send_media"])
     await message.answer(
         t["adm_skip_or_send"],
-        reply_markup=_ikb([_row(_btn("⏭ " + t["skip_btn"], "adm:skip_media"))])
+        reply_markup=_ikb([_row(_btn("⏭ " + t["skip_btn"], "adm:skip_media"))]),
     )
     await state.set_state(SendFSM.MEDIA)
 
 @router.callback_query(SendFSM.MEDIA, F.data == "adm:skip_media")
 async def adm_skip_media(cb: CallbackQuery, state: FSMContext):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
     t = _t(_lang(cb)); await cb.answer("⏭")
     await cb.message.answer(t["adm_ask_text"])
     await state.set_state(SendFSM.TEXT)
@@ -207,7 +199,7 @@ async def adm_skip_media(cb: CallbackQuery, state: FSMContext):
 @router.message(SendFSM.MEDIA, F.photo)
 async def adm_take_photo(message: Message, state: FSMContext):
     if not _is_admin(message.from_user.id):
-        return
+        await _deny_admin_access(message); return
     file_id = message.photo[-1].file_id
     await state.update_data(media={"type": "photo", "file_id": file_id})
     t = _t(_lang(message))
@@ -217,7 +209,7 @@ async def adm_take_photo(message: Message, state: FSMContext):
 @router.message(SendFSM.MEDIA, F.video)
 async def adm_take_video(message: Message, state: FSMContext):
     if not _is_admin(message.from_user.id):
-        return
+        await _deny_admin_access(message); return
     file_id = message.video.file_id
     await state.update_data(media={"type": "video", "file_id": file_id})
     t = _t(_lang(message))
@@ -227,7 +219,7 @@ async def adm_take_video(message: Message, state: FSMContext):
 @router.message(SendFSM.TEXT)
 async def adm_take_text(message: Message, state: FSMContext):
     if not _is_admin(message.from_user.id):
-        return
+        await _deny_admin_access(message); return
     txt = (message.text or "").strip()
     await state.update_data(text=txt)
 
@@ -253,7 +245,7 @@ async def adm_take_text(message: Message, state: FSMContext):
 @router.callback_query(SendFSM.PREVIEW, F.data == "adm:edit")
 async def adm_edit(cb: CallbackQuery, state: FSMContext):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
     t = _t(_lang(cb)); await cb.answer()
     await cb.message.answer(t["adm_ask_text"])
     await state.set_state(SendFSM.TEXT)
@@ -261,7 +253,7 @@ async def adm_edit(cb: CallbackQuery, state: FSMContext):
 @router.callback_query(SendFSM.PREVIEW, F.data == "adm:cancel")
 async def adm_cancel(cb: CallbackQuery, state: FSMContext):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
     t = _t(_lang(cb)); await cb.answer("❌")
     await state.clear()
     await cb.message.answer(t["adm_broadcast_canceled"])
@@ -269,7 +261,7 @@ async def adm_cancel(cb: CallbackQuery, state: FSMContext):
 @router.callback_query(SendFSM.PREVIEW, F.data == "adm:submit")
 async def adm_submit(cb: CallbackQuery, state: FSMContext):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
     t = _t(_lang(cb)); await cb.answer("🚀")
 
     data = await state.get_data()
@@ -286,13 +278,13 @@ async def adm_submit(cb: CallbackQuery, state: FSMContext):
             await _send_one(cb, uid, media, text)
             sent_ok = 1
         else:
-            users = db.get_all_users(0, 10000) if db else []
-            for u in users:
+            all_users = db.get_all_users(0, 10_000) if db else []
+            for u in all_users:
                 uid = int(u.get("user_id") or u.get("id"))
                 try:
                     await _send_one(cb, uid, media, text)
                     sent_ok += 1
-                    await asyncio.sleep(0.05)  # yumshoq rate-limit
+                    await asyncio.sleep(0.05)
                 except (TelegramForbiddenError, TelegramBadRequest):
                     sent_fail += 1
                 except Exception:
@@ -311,6 +303,7 @@ async def _send_one(cb: CallbackQuery, uid: int, media: Optional[dict], text: st
     else:
         await cb.message.bot.send_message(uid, text or " ")
 
+
 # ---------------------- USERS LIST ----------------------
 
 PAGE_SIZE = 10
@@ -320,7 +313,6 @@ def _users_page_kb(page: int, has_prev: bool, has_next: bool, t: dict) -> Inline
     nav = []
     if has_prev:
         nav.append(_btn("⬅️", f"adm:users:{page-1}"))
-    # mark current page (readonly)
     nav.append(_btn(f"{page+1}", f"adm:users:{page}"))
     if has_next:
         nav.append(_btn("➡️", f"adm:users:{page+1}"))
@@ -333,13 +325,13 @@ def _users_page_kb(page: int, has_prev: bool, has_next: bool, t: dict) -> Inline
 @router.callback_query(F.data.startswith("adm:users:"))
 async def adm_users(cb: CallbackQuery):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
     t = _t(_lang(cb)); await cb.answer()
 
     page = int(cb.data.split(":")[-1])
-    got = db.get_all_users(page * PAGE_SIZE, PAGE_SIZE + 1) if db else []
-    items = got[:PAGE_SIZE]
-    has_next = len(got) > PAGE_SIZE
+    all_users = db.get_all_users(page * PAGE_SIZE, PAGE_SIZE + 1) if db else []
+    items = all_users[:PAGE_SIZE]
+    has_next = len(all_users) > PAGE_SIZE
     has_prev = page > 0
 
     if not items:
@@ -348,29 +340,27 @@ async def adm_users(cb: CallbackQuery):
 
     blocks = [_user_card(u) for u in items]
     txt = "👥 <b>Foydalanuvchilar</b>\n\n" + "\n".join(blocks)
-    await cb.message.answer(
-        txt, parse_mode="HTML",
-        reply_markup=_users_page_kb(page, has_prev, has_next, t)
-    )
-
-# ---- Alohida FIND FSM (SEND oqimi bilan to'qnashmasin) ----
-
-class FindFSM(StatesGroup):
-    QUERY = State()
+    await cb.message.answer(txt, parse_mode="HTML",
+                            reply_markup=_users_page_kb(page, has_prev, has_next, t))
 
 @router.callback_query(F.data == "adm:find")
 async def adm_find_prompt(cb: CallbackQuery, state: FSMContext):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
     t = _t(_lang(cb)); await cb.answer()
-    await state.set_state(FindFSM.QUERY)
+    await state.set_state(SendFSM.ONE_USER)
     await cb.message.answer(t["adm_find_prompt"])
 
-@router.message(FindFSM.QUERY)
+@router.message(SendFSM.ONE_USER)
 async def adm_find_user_show(message: Message, state: FSMContext):
+    # Bu handler yuborish oqimi ONE_USER bilan to‘qnashmasligi uchun state bayroqlarini tekshiradi
     if not _is_admin(message.from_user.id):
-        return
+        await _deny_admin_access(message); return
     lang = _lang(message); t = _t(lang)
+
+    data = await state.get_data()
+    if data.get("target") in ("one", "all"):
+        return  # bu holatda yuqoridagi handler ishlaydi
 
     uid: Optional[int] = None
     txt = (message.text or "").strip()
@@ -394,11 +384,12 @@ async def adm_find_user_show(message: Message, state: FSMContext):
     await message.answer(_user_card(u), parse_mode="HTML")
     await state.clear()
 
+
 # ---------------------- BACK ----------------------
 
 @router.callback_query(F.data == "adm:back")
 async def adm_back(cb: CallbackQuery):
     if not _is_admin(cb.from_user.id):
-        return
+        await _deny_admin_access(cb); return
     await cb.answer("◀️")
     await admin_entry(cb.message)
