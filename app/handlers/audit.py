@@ -12,6 +12,10 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
+from loguru import logger
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+
+
 from ..locales import L
 from ..storage.memory import get_lang, get_profile
 from ..config import settings
@@ -28,6 +32,49 @@ _TIME_RE = re.compile(
     r"^\s*(?P<h>[01]?\d|2[0-3])(?::|\.|\s)?(?P<m>[0-5]\d)?\s*(?P<ampm>[ap]m)?\s*$",
     re.IGNORECASE,
 )
+
+
+async def _notify_admins(bot, text: str, kb=None) -> bool:
+    """
+    Avval admin guruh(lar)i ga yuboradi; bo‘lmasa har bir admin userga DM.
+    True = hech bo‘lmasa bitta joyga muvaffaqiyatli yuborildi.
+    """
+    # 1) Guruhlar
+    groups = []
+    if getattr(settings, "admin_group_ids", None):
+        groups.extend(settings.admin_group_ids)
+    elif getattr(settings, "ADMIN_GROUP_ID", None):
+        groups.append(settings.ADMIN_GROUP_ID)
+
+    sent_any = False
+
+    for gid in groups:
+        if not gid:
+            continue
+        try:
+            await bot.send_message(gid, text, reply_markup=kb, parse_mode="HTML")
+            logger.info(f"Admin notify -> group {gid}: OK")
+            sent_any = True
+        except (TelegramBadRequest, TelegramForbiddenError) as e:
+            logger.warning(f"Admin notify -> group {gid}: {e}")
+        except Exception as e:
+            logger.exception(f"Admin notify -> group {gid}: {e}")
+
+    # 2) Fallback — har bir adminga DM
+    if not sent_any and getattr(settings, "admin_ids", None):
+        for uid in settings.admin_ids:
+            try:
+                await bot.send_message(uid, text, reply_markup=kb, parse_mode="HTML")
+                logger.info(f"Admin notify -> user {uid}: OK")
+                sent_any = True
+            except (TelegramBadRequest, TelegramForbiddenError) as e:
+                logger.warning(f"Admin notify -> user {uid}: {e}")
+            except Exception as e:
+                logger.exception(f"Admin notify -> user {uid}: {e}")
+
+    return sent_any
+
+
 
 def _parse_time(text: str) -> str | None:
     if not text:
