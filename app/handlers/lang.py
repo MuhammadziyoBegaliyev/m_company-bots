@@ -1,17 +1,12 @@
 # app/handlers/lang.py
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 from ..locales import L
-from ..handlers.main_menu import build_main_menu
-from ..keyboards.inline import WELCOME_KB
-from ..storage.memory import get_lang as mem_get_lang
+from ..storage.memory import get_lang
+from ..handlers.main_menu import build_main_kb, show_main_menu
 
-try:
-    from ..storage.memory import set_lang as mem_set_lang
-except Exception:
-    def mem_set_lang(uid: int, lang: str): pass
-
+# agar DB bilan ham tilni saqlamoqchi bo'lsangiz:
 try:
     from ..storage.db import db
 except Exception:
@@ -19,66 +14,28 @@ except Exception:
 
 router = Router()
 
-def _t(lang: str) -> dict:
-    return L.get(lang, L["uz"])
-
 @router.callback_query(F.data.startswith("lang:"))
-async def choose_lang(cb: CallbackQuery):
-    lang = cb.data.split(":")[-1]
-    if lang not in ("uz", "en", "ru"):
-        lang = "uz"
+async def set_lang_handler(cb: CallbackQuery):
+    code = cb.data.split(":", 1)[1]  # uz | en | ru
+    if code not in ("uz", "en", "ru"):
+        code = "uz"
 
-    mem_set_lang(cb.from_user.id, lang)
+    # memory va DB da saqlash (agar bor bo'lsa)
+    try:
+        from ..storage.memory import set_lang as mem_set_lang
+        mem_set_lang(cb.from_user.id, code)
+    except Exception:
+        pass
     if db:
-        db.init()
-        db.upsert_user(
-            user_id=cb.from_user.id,
-            username=cb.from_user.username or None,
-            name=cb.from_user.full_name or None,
-            lang=lang,
-        )
-
-    t = _t(lang)
-    await cb.answer(t.get("lang_ok", "✅ Saved"))
-
-    # 1) Welcome kartasi: rasm + caption + 3ta inline tugma
-    caption = t.get("welcome_caption") or ""
-    photo_paths = ["app/assets/welcome.png", "app/assets/about.png"]
-    sent = False
-    for p in photo_paths:
         try:
-            await cb.message.answer_photo(photo=p, caption=caption, parse_mode="HTML",
-                                          reply_markup=WELCOME_KB(lang))
-            sent = True
-            break
+            db.set_lang(cb.from_user.id, code)
         except Exception:
-            continue
-    if not sent:
-        await cb.message.answer(caption, parse_mode="HTML", reply_markup=WELCOME_KB(lang))
+            pass
 
-    # 2) Keyin — Asosiy menyu
-    await cb.message.answer(t.get("menu_hint", "🟡 Asosiy menyu:"),
-                            reply_markup=build_main_menu(lang))
-
-
-# Welcome tugmalari (soddalashtirilgan ko‘rinish)
-@router.callback_query(F.data == "welcome:about")
-async def welcome_about(cb: CallbackQuery):
-    lang = mem_get_lang(cb.from_user.id, "uz")
-    t = _t(lang)
+    t = L.get(code, L["uz"])
+    # “til tanlandi” xabari + reply klaviatura
+    await cb.message.answer(t.get("chosen", "✅ Tanlandi"), reply_markup=build_main_kb(code))
     await cb.answer()
-    await cb.message.answer(t.get("stub", "Bu bo'lim tez orada to'ldiriladi. 🙌"))
 
-@router.callback_query(F.data == "welcome:projects")
-async def welcome_projects(cb: CallbackQuery):
-    lang = mem_get_lang(cb.from_user.id, "uz")
-    t = _t(lang)
-    await cb.answer()
-    await cb.message.answer(t.get("projects_title", "Bizning loyihalar"))
-
-@router.callback_query(F.data == "welcome:contact")
-async def welcome_contact(cb: CallbackQuery):
-    lang = mem_get_lang(cb.from_user.id, "uz")
-    t = _t(lang)
-    await cb.answer()
-    await cb.message.answer(t.get("contact_title", "Biz bilan bog‘laning"))
+    # xohlasangiz, darhol asosiy menyuni ham ko'rsatasiz:
+    await show_main_menu(cb.message, code)

@@ -216,6 +216,43 @@ class DB:
         }
 
 
+    # --- schema ---  (users... dan keyin shu blokni qo'shing)
+    def init(self) -> None:
+        self.exec(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER UNIQUE NOT NULL,
+                username    TEXT,
+                name        TEXT,
+                phone       TEXT,
+                lang        TEXT,
+                onboarded   INTEGER DEFAULT 0,
+                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        # NEW: materials
+        self.exec(
+            """
+            CREATE TABLE IF NOT EXISTS materials (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                category      TEXT NOT NULL CHECK (category IN ('book','article','video','audio')),
+                lang          TEXT NOT NULL,
+                title         TEXT NOT NULL,
+                description   TEXT,
+                is_paid       INTEGER NOT NULL DEFAULT 0,
+                price_cents   INTEGER NOT NULL DEFAULT 0,
+                source_type   TEXT NOT NULL CHECK (source_type IN ('file_id','url','text')),
+                source_ref    TEXT NOT NULL,
+                created_by    INTEGER,
+                created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
+
+
 # Global instansiya
 db = DB()
 db.init()  

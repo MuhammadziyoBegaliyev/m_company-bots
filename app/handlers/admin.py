@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 # app/handlers/admin.py
 
@@ -45,6 +46,7 @@ def _admin_main_kb(t: dict) -> InlineKeyboardMarkup:
     return _ikb([
         _row(_btn("📣 " + _g(t, "adm_send_msg", "Xabar yuborish"), "adm:send")),
         _row(_btn("👥 " + _g(t, "adm_users_list", "Foydalanuvchilar ro'yxati"), "adm:users:0")),
+        _row(_btn("📚 " + _g(t, "materials_admin_btn", "Materiallar"), "adm:mats")),
     ])
 
 # kartochka ko‘rinishi

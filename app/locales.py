@@ -207,6 +207,34 @@ L = {
         "aud_user_retime": "⏰ Admin vaqtni o‘zgartirishni so‘radi. Iltimos yangi vaqtni HH:MM ko‘rinishida yuboring:",
         "aud_user_canceled": "🛑 So‘rovingiz bekor qilindi.",
 
+        #materiallar 
+        "btn_materials": "Materiallar",
+        "materials_title": "📚 Materiallar",
+        "materials_intro": "Kerakli bo‘limni tanlang:",
+        "mat_cases_btn": "📂 Keýslar",
+        "mat_guides_btn": "📘 Qo‘llanmalar",
+        "mat_templates_btn": "🧩 Shablonlar",
+        "mat_pdf_btn": "📄 PDF",
+        "mat_video_btn": "🎬 Video",
+        "mat_site_btn": "🌐 Web-sayt",
+        "btn_materials": "Materiallar",
+        "materials_title": "Materiallar",
+        "materials_choose_cat": "Kategoriya tanlang:",
+        "materials_books": "Kitoblar",
+        "materials_articles": "Bilim (maqolalar)",
+        "materials_videos": "Videolar",
+        "materials_audios": "Audiolar",
+        "materials_not_found": "Bu toifadagi materiallar topilmadi.",
+        "materials_paid_label": "Pullik",
+        "materials_free_label": "Bepul",
+        "materials_buy_cta": "💳 Sotib olish (admin)",
+        "materials_back": "⬅️ Orqaga",
+        # Admin texts
+        "materials_admin_btn": "Materiallar",
+        "adm_mat_title": "Materiallarni boshqarish",
+        "adm_mat_add": "Yangi material qo‘shish",
+        "adm_mat_list": "Materiallar ro‘yxati",
+
         # ---------- Admin panel ----------
         "adm_not_admin": "❌ Siz admin emassiz.",
         "adm_send_msg": "Xabar yuborish",
@@ -228,7 +256,12 @@ L = {
         "adm_user_show_btn": "Foydalanuvchini ko‘rish",
         "adm_find_prompt": "Forward / @username / user_id yuboring:",
         "adm_msg_this_user": "Shu foydalanuvchiga yozish",
+
+
+
     },
+
+
 
     # =========================================================
     # ENGLISH
@@ -428,6 +461,36 @@ L = {
         "aud_user_approved": "✅ Your booking has been approved!",
         "aud_user_retime": "⏰ Admin asked to change time. Please send a new HH:MM:",
         "aud_user_canceled": "🛑 Your booking was canceled.",
+
+        #materials
+        # --- Materials ---
+        "btn_materials": "Materials",
+        "materials_title": "📚 Materials",
+        "materials_intro": "Choose a section:",
+        "mat_cases_btn": "📂 Case studies",
+        "mat_guides_btn": "📘 Guides",
+        "mat_templates_btn": "🧩 Templates",
+        "mat_pdf_btn": "📄 PDF",
+        "mat_video_btn": "🎬 Video",
+        "mat_site_btn": "🌐 Website",
+        "btn_materials": "Materials",
+        "materials_title": "Materials",
+        "materials_choose_cat": "Pick a category:",
+        "materials_books": "Books",
+        "materials_articles": "Knowledge (articles)",
+        "materials_videos": "Videos",
+        "materials_audios": "Audios",
+        "materials_not_found": "No materials found in this category.",
+        "materials_paid_label": "Paid",
+        "materials_free_label": "Free",
+        "materials_buy_cta": "💳 Purchase (contact admin)",
+        "materials_back": "⬅️ Back",
+        "materials_admin_btn": "Materials",
+        "adm_mat_title": "Manage Materials",
+        "adm_mat_add": "Add new material",
+        "adm_mat_list": "List materials",
+
+
 
         # ---------- Admin panel ----------
         "adm_not_admin": "❌ You are not an admin.",
@@ -650,6 +713,36 @@ L = {
         "aud_user_approved": "✅ Ваша бронь одобрена!",
         "aud_user_retime": "⏰ Админ запросил новое время. Отправьте HH:MM:",
         "aud_user_canceled": "🛑 Ваша бронь отменена.",
+
+        #materials
+        # --- Materials ---
+        "btn_materials": "Материалы",
+        "materials_title": "📚 Материалы",
+        "materials_intro": "Выберите раздел:",
+        "mat_cases_btn": "📂 Кейсы",
+        "mat_guides_btn": "📘 Гайды",
+        "mat_templates_btn": "🧩 Шаблоны",
+        "mat_pdf_btn": "📄 PDF",
+        "mat_video_btn": "🎬 Видео",
+        "mat_site_btn": "🌐 Веб-сайт",
+        "btn_materials": "Материалы",
+        "materials_title": "Материалы",
+        "materials_choose_cat": "Выберите категорию:",
+        "materials_books": "Книги",
+        "materials_articles": "Знания (статьи)",
+        "materials_videos": "Видео",
+        "materials_audios": "Аудио",
+        "materials_not_found": "В этой категории пока нет материалов.",
+        "materials_paid_label": "Платно",
+        "materials_free_label": "Бесплатно",
+        "materials_buy_cta": "💳 Купить (написать админу)",
+        "materials_back": "⬅️ Назад",
+        "materials_admin_btn": "Материалы",
+        "adm_mat_title": "Управление материалами",
+        "adm_mat_add": "Добавить материал",
+        "adm_mat_list": "Список материалов",
+
+
 
         # ---------- Admin panel ----------
         "adm_not_admin": "❌ Вы не администратор.",

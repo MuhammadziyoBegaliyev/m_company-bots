@@ -13,11 +13,11 @@ from ..storage.memory import get_lang
 
 router = Router()
 
-# === Config: office coordinates (edit if needed) ===
+# === Config: Office koordinatalari ===
 OFFICE_LAT = 41.339893
 OFFICE_LON = 69.293765
 
-# === Reply button labels in 3 languages (for entry trigger) ===
+# === Reply tugmalari (uch tilda) ===
 CONTACT_BTNS = {
     L["uz"]["btn_contact"],
     L["en"]["btn_contact"],
@@ -26,7 +26,7 @@ CONTACT_BTNS = {
 
 # ---------- Helpers ----------
 def _t(lang: str) -> dict:
-    """Safe translation getter with Uzbek fallback."""
+    """Til lug‘ati (Uzbek fallback)."""
     return L.get(lang, L["uz"])
 
 def _main_kb(lang: str) -> InlineKeyboardMarkup:
@@ -60,7 +60,7 @@ def _social_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 async def _safe_cb_answer(cb: CallbackQuery, *args, **kwargs):
-    """Avoids 'query is too old' crashes."""
+    """‘query is too old’ xatolarini yutib yuborish uchun xavfsiz cb.answer()."""
     try:
         await cb.answer(*args, **kwargs)
     except TelegramBadRequest as e:
@@ -70,18 +70,29 @@ async def _safe_cb_answer(cb: CallbackQuery, *args, **kwargs):
         raise
 
 def _clean_phone(s: str) -> str:
-    """Make phone number safe for send_contact."""
+    """send_contact uchun raqamni tozalash (faqat kerak bo‘lganda)."""
     s = (s or "").strip()
     plus = s.startswith("+")
     digits = "".join(ch for ch in s if ch.isdigit())
     return f"+{digits}" if plus else digits
 
-# ---------- Entry ----------
+
+# ---------- Entry: Reply tugmadan ----------
 @router.message(F.text.in_(CONTACT_BTNS))
 async def contact_entry(message: Message):
     lang = get_lang(message.from_user.id, "uz")
     t = _t(lang)
     await message.answer(t["contact_title"], reply_markup=_main_kb(lang))
+
+
+# ---------- Entry: Welcome inline tugmadan ----------
+@router.callback_query(F.data == "nav:contact")
+async def nav_contact(cb: CallbackQuery):
+    lang = get_lang(cb.from_user.id, "uz")
+    await _safe_cb_answer(cb)
+    t = _t(lang)
+    await cb.message.answer(t["contact_title"], reply_markup=_main_kb(lang))
+
 
 # ---------- Address ----------
 @router.callback_query(F.data == "contact:addr")
@@ -89,7 +100,7 @@ async def contact_addr(cb: CallbackQuery):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
     await _safe_cb_answer(cb)
 
-    title = t.get("contact_addr_title") or "M Company Office"   # ixtiyoriy: L’da qo‘shsangiz bo‘ladi
+    title = t.get("contact_addr_title") or "M Company Office"
     address = t["contact_address_text"]
 
     maps_url = f"https://maps.google.com/?q={OFFICE_LAT},{OFFICE_LON}"
@@ -98,7 +109,7 @@ async def contact_addr(cb: CallbackQuery):
         [InlineKeyboardButton(text=t["back_btn"], callback_data="contact:back")],
     ])
 
-    # 1 xabar ichida: joylashuv + matn (title/address) + inline tugmalar
+    # 1 ta xabar: joylashuv (venue) + pastida inline tugmalar
     try:
         await cb.message.answer_venue(
             latitude=OFFICE_LAT,
@@ -108,7 +119,7 @@ async def contact_addr(cb: CallbackQuery):
             reply_markup=kb
         )
     except AttributeError:
-        # Agar aiogram versiyangizda answer_venue yo‘q bo‘lsa — bot orqali yuboramiz
+        # Aiogram versiyasida answer_venue yo‘q bo‘lsa
         await cb.message.bot.send_venue(
             chat_id=cb.message.chat.id,
             latitude=OFFICE_LAT,
@@ -133,26 +144,26 @@ async def contact_mail(cb: CallbackQuery):
     ])
     await cb.message.answer(f"✉️ {t['contact_email_text']}", reply_markup=kb)
 
-# ---------- Call ----------
-# --- 3) To'g'ridan-to'g'ri bog'lanish ---
+
+# ---------- Call (to‘g‘ridan-to‘g‘ri) ----------
 @router.callback_query(F.data == "contact:call")
 async def contact_call(cb: CallbackQuery):
-    lang = get_lang(cb.from_user.id, "uz"); t = L[lang]
-    await cb.answer()
+    lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
+    await _safe_cb_answer(cb)
 
-    # Inline tugmalar: Telegram yozish (ixtiyoriy) + Orqaga
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✉️ Telegram", url="https://t.me/Narkuziyev")],
         [InlineKeyboardButton(text=t["back_btn"], callback_data="contact:back")],
     ])
 
-    # Bitta xabar ichida: contact card + inline tugmalar (Call tugmasi Telegramning o'zi beradi)
+    # Bitta xabar ichida: contact card + inline tugmalar
     await cb.message.answer_contact(
         phone_number="+998908086383",
         first_name="M Company",
         vcard="BEGIN:VCARD\nVERSION:3.0\nFN:M Company\nTEL;TYPE=CELL:+998908086383\nEND:VCARD",
         reply_markup=kb
     )
+
 
 # ---------- Working hours ----------
 @router.callback_query(F.data == "contact:hours")
@@ -164,6 +175,7 @@ async def contact_hours(cb: CallbackQuery):
         [InlineKeyboardButton(text=t["back_btn"], callback_data="contact:back")]
     ])
     await cb.message.answer(f"🕒 {t['contact_hours_text']}", reply_markup=kb)
+
 
 # ---------- Social ----------
 @router.callback_query(F.data == "contact:social")
@@ -183,6 +195,7 @@ async def social_tg(cb: CallbackQuery):
         [InlineKeyboardButton(text=t["back_btn"], callback_data="contact:back")],
     ])
     await cb.message.answer(t["contact_tg_text"], reply_markup=kb)
+
 
 # ---------- Back to Contact main ----------
 @router.callback_query(F.data == "contact:back")

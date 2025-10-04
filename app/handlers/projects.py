@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 # app/handlers/projects.py
+"""
+Loyihalar bo'limi:
+- Reply tugma:  btn_projects
+- Inline (welcome): nav:projects  -> bitta ro'yxat handleriga ulanadi
+- Har loyiha uchun rasm + matn; rasm og'ir bo'lsa Pillow bilan siqib yuboradi
+"""
 
 from aiogram import Router, F
 from aiogram.types import (
@@ -12,7 +18,7 @@ import os
 import hashlib
 from typing import Optional, Tuple
 
-# === Pillow: rasmni tayyorlash (convert/resize/compress) ===
+# --- Pillow: rasmni tayyorlash (convert/resize/compress) ---
 try:
     from PIL import Image, ImageOps
     HAS_PIL = True
@@ -21,8 +27,12 @@ except Exception:
 
 router = Router()
 
-# Reply tugma matnlari (3 tilda)
-PROJECTS_BTNS = {L["uz"]["btn_projects"], L["en"]["btn_projects"], L["ru"]["btn_projects"]}
+# Reply tugma matnlari (3 tilda) — kalitlar yo'qligida ham yiqilmaslik uchun get() bilan
+PROJECTS_BTNS = {
+    L.get("uz", {}).get("btn_projects", "Bizning loyihalar"),
+    L.get("en", {}).get("btn_projects", "Our projects"),
+    L.get("ru", {}).get("btn_projects", "Наши проекты"),
+}
 
 ICONS = {
     "target_pro": "🎯",
@@ -36,7 +46,7 @@ ICONS = {
     "fresh_line": "🧪",
 }
 
-# Rasm yo'llari (mavjud bo'lishi kerak)
+# Rasm yo'llari (fayllar mavjud bo'lishi kerak)
 PROJECT_PHOTOS = {
     "target_pro": "app/assets/projects/target_pro.jpg",
     "agroboost":  "app/assets/projects/agroboost_map.jpg",
@@ -61,7 +71,7 @@ PROJECT_URLS = {
     "fresh_line": "https://www.fresh-line.uz/",
 }
 
-# --- Maxsus tartib (siz xohlagan joylashuv) ---
+# ----------------- UI helpers -----------------
 def _kb_projects(lang: str) -> InlineKeyboardMarkup:
     t = L.get(lang, L["uz"])
 
@@ -76,12 +86,12 @@ def _kb_projects(lang: str) -> InlineKeyboardMarkup:
         )
 
     rows = [
-        [btn("target_pro"), btn("fresh_line")],    # 1: yonma-yon
-        [btn("agroboost"),  btn("iservice")],      # 2: yonma-yon
-        [btn("roboticslab"),btn("falco")],         # 3: yonma-yon
-        [btn("food_quest")],                       # 4: yakka
-        [btn("imac")],                              # 5: yakka
-        [btn("tatu")],                              # 6: yakka
+        [btn("target_pro"), btn("fresh_line")],    # 1-qator yonma-yon
+        [btn("agroboost"),  btn("iservice")],      # 2-qator yonma-yon
+        [btn("roboticslab"),btn("falco")],         # 3-qator yonma-yon
+        [btn("food_quest")],                       # 4-qator yakka
+        [btn("imac")],                              # 5-qator yakka
+        [btn("tatu")],                              # 6-qator yakka
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -90,7 +100,7 @@ def _kb_detail(lang: str, key: str) -> InlineKeyboardMarkup:
     url = PROJECT_URLS.get(key, "https://mcompany.uz/#")
     rows = [
         [InlineKeyboardButton(text=t.get("svc_more", "More ↗️"), url=url)],
-        [InlineKeyboardButton(text=t["back_btn"], callback_data="prj:back")],
+        [InlineKeyboardButton(text=t.get("back_btn", "⬅️ Back"), callback_data="prj:back")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -102,6 +112,7 @@ async def _safe_cb_answer(cb: CallbackQuery, *args, **kwargs):
             return
         raise
 
+# 1024 belgidan uzun captionlarni bo‘lib yuborish
 MAX_CAPTION = 1024
 def _split_caption(text: str, limit: int = MAX_CAPTION) -> Tuple[str, Optional[str]]:
     text = (text or "").strip()
@@ -112,13 +123,11 @@ def _split_caption(text: str, limit: int = MAX_CAPTION) -> Tuple[str, Optional[s
         cut = limit
     return text[:cut].strip(), text[cut:].strip() or None
 
-# === Rasm tayyorlash: og'ir fayllarni ham foto sifatida yuborish uchun “ko'p variantli” pipeline ===
-
+# ----------------- Rasm tayyorlash (Pillow bilan) -----------------
 _CACHE_DIR = "app/.cache/projects"
 os.makedirs(_CACHE_DIR, exist_ok=True)
 
 def _hash_key(path: str, key: str, tag: str) -> str:
-    """Path + key + variant tag bo'yicha deterministik fayl nomi."""
     h = hashlib.sha256(f"{os.path.abspath(path)}::{key}::{tag}".encode("utf-8")).hexdigest()[:16]
     return os.path.join(_CACHE_DIR, f"{key}_{tag}_{h}.jpg")
 
@@ -135,29 +144,28 @@ def _prepare_variant(
     optimize: bool = True,
 ) -> Optional[FSInputFile]:
     """
-    Bitta variant bo'yicha: RGBA->RGB, EXIF transpose, resize <= max_side,
-    so'ng JPEG sifatini pasaytirib target_max_bytes ga tushirish.
+    Bitta variant: EXIF transpose, RGBA->RGB, resize<=max_side,
+    so'ng quality/resize bilan target_max_bytes ichiga tushirish.
     """
     if not HAS_PIL:
-        # Pillow yo'q — baribir originalni yuborib ko'ramiz
         return FSInputFile(src_path)
 
     try:
         with Image.open(src_path) as im:
-            # EXIF orientatsiya
+            # EXIF
             try:
                 im = ImageOps.exif_transpose(im)
             except Exception:
                 pass
 
-            # RGBA/LA/P -> oq fon bilan RGB; CMYK/L -> RGB
+            # Rang rejimlari
             if im.mode in ("RGBA", "LA", "P"):
                 base = Image.new("RGB", im.size, (255, 255, 255))
                 if im.mode == "P":
                     im = im.convert("RGBA")
                 base.paste(im, mask=im.split()[-1] if im.mode in ("RGBA", "LA") else None)
                 im = base
-            elif im.mode not in ("RGB",):
+            elif im.mode != "RGB":
                 im = im.convert("RGB")
 
             # Dastlabki resize
@@ -172,13 +180,15 @@ def _prepare_variant(
                     resample = Image.LANCZOS
                 im = im.resize(new_size, resample=resample)
 
-            # Iterativ quality & resize kichraytirish
-            out_path = _hash_key(src_path, key, f"s{max_side}_t{target_max_bytes//1_000_000}mb_p{int(progressive)}_o{int(optimize)}")
+            # Iterativ siqish
+            out_path = _hash_key(
+                src_path, key,
+                f"s{max_side}_t{target_max_bytes//1_000_000}mb_p{int(progressive)}_o{int(optimize)}"
+            )
             q = start_quality
             tries = 0
             while True:
                 tries += 1
-                # Saqlab ko'ramiz
                 im.save(
                     out_path,
                     format="JPEG",
@@ -190,41 +200,34 @@ def _prepare_variant(
                 if size <= target_max_bytes:
                     return FSInputFile(out_path, filename=f"{key}.jpg")
 
-                # Agar juda katta chiqayotgan bo'lsa: avval quality pasaytirish
                 if q > min_quality:
                     q = max(min_quality, q - step_quality)
                 else:
-                    # Quality past — endi yana 15% ga kichraytiramiz
                     nw, nh = im.size
                     new_size2 = (max(1, int(nw * 0.85)), max(1, int(nh * 0.85)))
                     if new_size2 == im.size or min(new_size2) < 50:
-                        # Juda kichik bo'lib ketdi — shunisi bilan qaytamiz
                         return FSInputFile(out_path, filename=f"{key}.jpg")
                     try:
                         resample = Image.Resampling.LANCZOS
                     except Exception:
                         resample = Image.LANCZOS
                     im = im.resize(new_size2, resample=resample)
-                    # Quality’ni biroz ko'tarib, yana pasaytirish imkonini qoldiramiz
                     q = min(start_quality, q + int(step_quality // 2))
 
                 if tries >= 10:
-                    # Juda ko'p urindik — hozirgi variantni qaytaramiz
                     return FSInputFile(out_path, filename=f"{key}.jpg")
 
     except Exception:
-        # Favqulodda: originalni qaytarib yuboramiz (baribir photo sifatida sinab ko'riladi)
         return FSInputFile(src_path)
 
 def _prepare_photo_multi(src_path: str, key: str) -> Optional[FSInputFile]:
     """
-    Bir necha "variant" bilan tayyorlaydi. Birinchisi odatdagidek, keyingilari
-    tobora agressivroq siqadi. Birinchisi odatda yetadi.
+    Bir nechta variantlardan birinchisini tayyorlaydi (odatda yetadi).
     """
     if not src_path or not os.path.isfile(src_path):
         return None
 
-    # Variant 1: 2000px, ~9MB, quality 85->55, progressive+optimize (odatda yetadi)
+    # Variant 1: 2000px, ~9MB, quality 85->55, progressive+optimize
     v1 = _prepare_variant(
         src_path, key,
         max_side=2000,
@@ -238,8 +241,7 @@ def _prepare_photo_multi(src_path: str, key: str) -> Optional[FSInputFile]:
 
 async def _send_photo_resilient(cb: CallbackQuery, file: FSInputFile, *, caption: str, kb: InlineKeyboardMarkup):
     """
-    IMAGE_PROCESS_FAILED bo'lsa, avtomatik ravishda boshqa tayyorlash variantlarini
-    sinab ko'radi (progressive/baseline, yanada kichikroq o'lcham va hajm).
+    Telegram IMAGE_PROCESS_FAILED bo'lsa, agressivroq variantlarni sinab ko'radi.
     """
     try:
         await cb.message.answer_photo(photo=file, caption=caption, reply_markup=kb, parse_mode="HTML")
@@ -248,8 +250,8 @@ async def _send_photo_resilient(cb: CallbackQuery, file: FSInputFile, *, caption
         if "IMAGE_PROCESS_FAILED" not in str(e):
             raise
 
-    # 2-variant: 1600px, ~5MB, baseline (progressive=False), optimize=True
-    src_real = file.path if hasattr(file, "path") else None
+    # 2-variant: 1600px, ~5MB, baseline
+    src_real = getattr(file, "path", None)
     key_guess = os.path.splitext(os.path.basename(src_real or "photo"))[0]
     if src_real and HAS_PIL:
         v2 = _prepare_variant(
@@ -281,23 +283,35 @@ async def _send_photo_resilient(cb: CallbackQuery, file: FSInputFile, *, caption
         await cb.message.answer_photo(photo=v3, caption=caption, reply_markup=kb, parse_mode="HTML")
         return
 
-    # Agar Pillow bo'lmasa/patni topa olmasak — qayta urinishning iloji yo‘q
-    # (Bunday holat kam uchraydi). Matn bilan davom etamiz:
+    # Pillow yo'q — matn bilan davom etamiz
     await cb.message.answer(caption, reply_markup=kb, parse_mode="HTML")
 
+# ----------------- Handlers -----------------
+
+# Reply tugma orqali kirish
 @router.message(F.text.in_(PROJECTS_BTNS))
 async def projects_entry(message: Message):
     lang = get_lang(message.from_user.id, "uz")
     t = L.get(lang, L["uz"])
-    await message.answer(t["projects_title"], reply_markup=_kb_projects(lang))
+    await message.answer(t.get("projects_title", "Bizning loyihalar"), reply_markup=_kb_projects(lang))
 
+# Welcome inline tugmasi orqali kirish (bitta funksiya – ikki joydan ko‘rinadi)
+@router.callback_query(F.data == "nav:projects")
+async def nav_projects(cb: CallbackQuery):
+    lang = get_lang(cb.from_user.id, "uz")
+    t = L.get(lang, L["uz"])
+    await _safe_cb_answer(cb)
+    await cb.message.answer(t.get("projects_title", "Bizning loyihalar"), reply_markup=_kb_projects(lang))
+
+# Orqaga – ro‘yxatga qaytish
 @router.callback_query(F.data == "prj:back")
 async def projects_back(cb: CallbackQuery):
     lang = get_lang(cb.from_user.id, "uz")
     t = L.get(lang, L["uz"])
     await _safe_cb_answer(cb)
-    await cb.message.answer(t["projects_title"], reply_markup=_kb_projects(lang))
+    await cb.message.answer(t.get("projects_title", "Bizning loyihalar"), reply_markup=_kb_projects(lang))
 
+# Loyihani tanlash
 @router.callback_query(F.data.startswith("prj:"))
 async def project_selected(cb: CallbackQuery):
     key = cb.data.split(":", 1)[1]
@@ -308,7 +322,7 @@ async def project_selected(cb: CallbackQuery):
     t = L.get(lang, L["uz"])
 
     title = t.get(f"prj_{key}", "Fresh Line" if key == "fresh_line" else key.replace("_", " ").title())
-    body  = t.get(f"prj_{key}_body", t["project_selected"].format(name=title))
+    body  = t.get(f"prj_{key}_body", t.get("project_selected", "Loyiha: {name}").format(name=title))
     caption_full = f"<b>{title}</b>\n\n{body}"
     caption_head, caption_tail = _split_caption(caption_full)
 
@@ -317,7 +331,7 @@ async def project_selected(cb: CallbackQuery):
     photo_path = PROJECT_PHOTOS.get(key)
     kb = _kb_detail(lang, key)
 
-    # Rasmni tayyorlash (variant 1 dan boshlaydi)
+    # Rasmni tayyorlab yuborish
     file = _prepare_photo_multi(photo_path, key) if photo_path else None
     if file:
         await _send_photo_resilient(cb, file, caption=caption_head, kb=kb)
@@ -325,5 +339,5 @@ async def project_selected(cb: CallbackQuery):
             await cb.message.answer(caption_tail, parse_mode="HTML")
         return
 
-    # Agar rasm yo'q bo'lsa — matn
+    # Rasm bo'lmasa — faqat matn
     await cb.message.answer(caption_full, reply_markup=kb, parse_mode="HTML")

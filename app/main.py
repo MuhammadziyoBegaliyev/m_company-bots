@@ -21,6 +21,7 @@ from .handlers import about as about_handlers
 from .handlers import audit as audit_handlers
 from .handlers import admin as admin_handlers  # admin panel
 from .handlers import materials as materials_handlers
+from .handlers import admin_materials as admin_materials_handlers
 
 def include_once(dp: Dispatcher, router, name: str) -> None:
     """Router allaqachon ulangan bo‘lsa xatoga uchramaslik uchun himoya."""
@@ -59,6 +60,7 @@ async def main():
     include_once(dp, about_handlers.router, "about")
     include_once(dp, audit_handlers.router, "audit")
     include_once(dp, materials_handlers.router, "materials")
+    include_once(dp, admin_materials_handlers.router, "admin_materials")
     include_once(dp, admin_handlers.router, "admin")          # ✅ shu yerda ham include_once
 
     logger.info("Bot polling start")
