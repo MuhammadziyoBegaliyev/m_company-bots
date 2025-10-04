@@ -20,6 +20,7 @@ def build_main_menu(lang: str) -> ReplyKeyboardMarkup:
             [KeyboardButton(text=t["btn_faq"])],
             [KeyboardButton(text=t["btn_contact"]), KeyboardButton(text=t["btn_about"])],
             [KeyboardButton(text=t["btn_audit"])],
+            [KeyboardButton(text=t['btn_materials'])],
         ],
         resize_keyboard=True,
         input_field_placeholder=t.get("main_menu_placeholder") or t.get("menu_title") or "Quyidagi bo'limlardan birini tanlang:"
