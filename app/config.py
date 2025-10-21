@@ -11,8 +11,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 def _to_int_list(v: Any) -> List[int]:
     """
-    Har xil ko‘rinishdagi qiymatni int ro‘yxatiga aylantiradi.
-    Qo‘llab-quvvatlaydi:
+    Har xil ko'rinishdagi qiymatni int ro'yxatiga aylantiradi.
+    Qo'llab-quvvatlaydi:
       - int
       - list/tuple (raqamlar yoki raqam-str)
       - str: "111, 222, -100333" yoki "[111, 222]" (JSON ham)
@@ -30,7 +30,7 @@ def _to_int_list(v: Any) -> List[int]:
         return [v]
     if isinstance(v, str):
         s = v.strip()
-        # JSON bo‘lishi mumkin
+        # JSON bo'lishi mumkin
         if s.startswith("[") and s.endswith("]"):
             try:
                 arr = json.loads(s)
@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     admin_ids_env: Optional[str] = Field(
         default=None,
         validation_alias=AliasChoices("ADMIN_IDS", "admin_ids"),
-        description="Adminlar ro‘yxati (CSV yoki JSON)",
+        description="Adminlar ro'yxati (CSV yoki JSON)",
     )
     faq_group_ids_env: Optional[str] = Field(
         default=None,
@@ -81,12 +81,12 @@ class Settings(BaseSettings):
         description="Audit/bron guruh(lar)i (CSV/JSON)",
     )
 
-    # === Biz ishlatadigan tayyor ro‘yxatlar ===
+    # === Biz ishlatadigan tayyor ro'yxatlar ===
     admin_ids: List[int] = Field(default_factory=list)
     faq_group_ids: List[int] = Field(default_factory=list)
     admin_group_ids: List[int] = Field(default_factory=list)
 
-    # === URL / yo‘l sozlamalari ===
+    # === URL / yo'l sozlamalari ===
     AUDIT_WEBSITE_URL: str = Field(
         default="https://mcompany.uz/audit/starter/",
         validation_alias=AliasChoices("AUDIT_WEBSITE_URL", "audit_website_url"),
@@ -99,7 +99,7 @@ class Settings(BaseSettings):
         description="DB ulanish satri (sqlite/postgres va hokazo)",
     )
 
-    # === Qo‘shimcha umumiy sozlamalar ===
+    # === Qo'shimcha umumiy sozlamalar ===
     DEFAULT_LANG: str = Field(
         default="uz",
         validation_alias=AliasChoices("DEFAULT_LANG", "default_lang"),
@@ -148,7 +148,7 @@ class Settings(BaseSettings):
         v = (v or "uz").lower().strip()
         return v if v in {"uz", "en", "ru"} else "uz"
 
-    # Raw maydonlardan haqiqiy ro‘yxatlarni yig‘ib qo‘yamiz
+    # Raw maydonlardan haqiqiy ro'yxatlarni yig'ib qo'yamiz
     @model_validator(mode="after")
     def _build_lists_from_env(self):
         if not self.admin_ids and self.admin_ids_env:
@@ -162,10 +162,10 @@ class Settings(BaseSettings):
 
         return self
 
-    # === Backward-compat properties (eski kodni qo‘llab-quvvatlash) ===
+    # === Backward-compat properties (eski kodni qo'llab-quvvatlash) ===
     @property
     def ADMIN_GROUP_ID(self) -> Optional[int]:
-        """Eski handlerlarda settings.ADMIN_GROUP_ID ishlatilgan bo‘lishi mumkin."""
+        """Eski handlerlarda settings.ADMIN_GROUP_ID ishlatilgan bo'lishi mumkin."""
         return self.admin_group_ids[0] if self.admin_group_ids else None
 
     @property
@@ -184,4 +184,13 @@ class Settings(BaseSettings):
     )
 
 
+# ===== SETTINGS INSTANCE =====
+# Bu faylning oxirida yaratamiz
 settings = Settings()
+
+# Debug output (ixtiyoriy - kerak bo'lsa o'chirish mumkin)
+if __name__ == "__main__":
+    print(f"✅ Config loaded")
+    print(f"👥 Admin IDs: {settings.admin_ids}")
+    print(f"📚 FAQ Groups: {settings.faq_group_ids}")
+    print(f"🛠  Admin Groups: {settings.admin_group_ids}")

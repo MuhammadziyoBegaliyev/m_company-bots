@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-# app/handlers/contact.py
 
 from aiogram import Router, F
 from aiogram.types import (
@@ -69,12 +67,6 @@ async def _safe_cb_answer(cb: CallbackQuery, *args, **kwargs):
             return
         raise
 
-def _clean_phone(s: str) -> str:
-    """send_contact uchun raqamni tozalash (faqat kerak bo‘lganda)."""
-    s = (s or "").strip()
-    plus = s.startswith("+")
-    digits = "".join(ch for ch in s if ch.isdigit())
-    return f"+{digits}" if plus else digits
 
 
 # ---------- Entry: Reply tugmadan ----------

@@ -250,6 +250,58 @@ class DB:
             );
             """
         )
+    # ------- MATERIALS API -------
+    def add_material(
+        self,
+        *,
+        category: str,
+        lang: str,
+        title: str,
+        description: str | None,
+        is_paid: bool,
+        price_cents: int,
+        source_type: str,   # 'file_id' | 'url' | 'text'
+        source_ref: str,    # file_id yoki URL yoki text
+        created_by: int | None = None,
+    ) -> int:
+        self.exec(
+            """
+            INSERT INTO materials (category, lang, title, description, is_paid, price_cents, source_type, source_ref, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            (
+                category, lang, title.strip(),
+                (description or "").strip(),
+                1 if is_paid else 0,
+                int(price_cents or 0),
+                source_type, source_ref, created_by
+            )
+        )
+        row = self.query_one("SELECT last_insert_rowid() as id")
+        return int(row["id"]) if row else 0
+
+    def get_material(self, mat_id: int) -> dict | None:
+        r = self.query_one("SELECT * FROM materials WHERE id=?", (mat_id,))
+        return dict(r) if r else None
+
+    def list_materials(self, *, category: str, lang: str, offset: int = 0, limit: int = 10) -> list[dict]:
+        cur = self.connect().execute(
+            """
+            SELECT * FROM materials
+            WHERE category = ? AND lang = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT ? OFFSET ?;
+            """,
+            (category, lang, limit, offset)
+        )
+        return [dict(x) for x in cur.fetchall()]
+
+    def count_materials(self, *, category: str, lang: str) -> int:
+        r = self.query_one(
+            "SELECT COUNT(*) as c FROM materials WHERE category=? AND lang=?",
+            (category, lang)
+        )
+        return int(r["c"] if r else 0)
 
 
 
