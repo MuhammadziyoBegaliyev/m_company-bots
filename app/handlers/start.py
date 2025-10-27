@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from aiogram import Router
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
@@ -14,17 +15,20 @@ from .onboarding import start_onboarding
 router = Router()
 logger.info("🏁 Start router initialized")
 
-WELCOME_PHOTO = "app/assets/welcome.jpg"
+# Nisbiy yo'l - loyiha strukturasiga bog'liq
+BASE_DIR = Path(__file__).resolve().parent.parent
+WELCOME_PHOTO = BASE_DIR / "assets" / "welcome.png"
 
 # >>> bu bayroq orqali xulq-atvorni boshqarasiz
-ALWAYS_ASK_LANG_ON_START = True
+# False qilsangiz - faqat yangi userlar uchun til so'raladi
+ALWAYS_ASK_LANG_ON_START = False
 
 
 def _lang_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="🇺🇿 Oʻzbekcha", callback_data="lang:uz"),
-        InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang:ru"),
-        InlineKeyboardButton(text="🇬🇧 English", callback_data="lang:en"),
+        InlineKeyboardButton(text="🇺🇿 Oʻz", callback_data="lang:uz"),
+        InlineKeyboardButton(text="🇷🇺 Ру", callback_data="lang:ru"),
+        InlineKeyboardButton(text="🇬🇧 Eng", callback_data="lang:en"),
     ]])
 
 
@@ -34,18 +38,51 @@ async def _show_welcome(message: Message, lang: str):
     
     inline_kb = await get_main_menu_kb(lang, inline=True)
     
-    if os.path.isfile(WELCOME_PHOTO):
+    # DEBUG: Faylni tekshirish
+    photo_path = str(WELCOME_PHOTO)
+    logger.info(f"📸 Checking welcome photo: {photo_path}")
+    logger.info(f"📸 File exists: {WELCOME_PHOTO.exists()}")
+    logger.info(f"📸 File is file: {WELCOME_PHOTO.is_file()}")
+    logger.info(f"📸 Current working dir: {os.getcwd()}")
+    logger.info(f"📸 BASE_DIR: {BASE_DIR}")
+    
+    # Rasmni yuborish
+    photo_sent = False
+    if WELCOME_PHOTO.exists() and WELCOME_PHOTO.is_file():
         try:
-            await message.answer_photo(
-                photo=FSInputFile(WELCOME_PHOTO),
+            # Fayl o'lchamini tekshirish
+            file_size = WELCOME_PHOTO.stat().st_size
+            logger.info(f"📸 File size: {file_size} bytes ({file_size / 1024:.2f} KB)")
+            
+            # Telegram 10MB dan kichik bo'lishi kerak
+            if file_size > 10 * 1024 * 1024:
+                logger.error(f"❌ Photo too large: {file_size / (1024*1024):.2f} MB")
+                raise ValueError("Photo file too large")
+            
+            photo = FSInputFile(str(WELCOME_PHOTO))
+            
+            # Avval faqat rasm yuboramiz
+            msg = await message.answer_photo(
+                photo=photo,
                 caption=caption,
-                reply_markup=inline_kb,
                 parse_mode="HTML",
             )
+            logger.info(f"📸 Welcome photo sent successfully! msg_id={msg.message_id}")
+            photo_sent = True
+            
+            # Keyin inline keyboard alohida yuboramiz
+            await message.answer(
+                "Quyidagilardan birini tanlang:",
+                reply_markup=inline_kb
+            )
+            
         except Exception as e:
-            logger.warning(f"Welcome photo send failed: {e}")
-            await message.answer(caption, reply_markup=inline_kb, parse_mode="HTML")
+            logger.error(f"❌ Welcome photo send failed: {e}", exc_info=True)
     else:
+        logger.warning(f"⚠️ Welcome photo not found at: {WELCOME_PHOTO}")
+    
+    # Agar rasm yuborilmagan bo'lsa, faqat matn yuboramiz
+    if not photo_sent:
         await message.answer(caption, reply_markup=inline_kb, parse_mode="HTML")
     
     # Reply asosiy menyu
@@ -56,7 +93,7 @@ async def _show_welcome(message: Message, lang: str):
 @router.message(CommandStart())
 async def start(message: Message, command: CommandObject):
     """
-    /start handler - har qanday /start ni ushlaydi
+    /start handler - har qanay /start ni ushlaydi
     (deep_link=True ni o'chirish orqali)
     """
     user = message.from_user

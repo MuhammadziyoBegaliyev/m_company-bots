@@ -15,7 +15,6 @@ from aiogram.fsm.context import FSMContext
 from loguru import logger
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
-
 from ..locales import L
 from ..storage.memory import get_lang, get_profile
 from ..config import settings
@@ -33,13 +32,7 @@ _TIME_RE = re.compile(
     re.IGNORECASE,
 )
 
-
 async def _notify_admins(bot, text: str, kb=None) -> bool:
-    """
-    Avval admin guruh(lar)i ga yuboradi; bo‘lmasa har bir admin userga DM.
-    True = hech bo‘lmasa bitta joyga muvaffaqiyatli yuborildi.
-    """
-    # 1) Guruhlar
     groups = []
     if getattr(settings, "admin_group_ids", None):
         groups.extend(settings.admin_group_ids)
@@ -47,7 +40,6 @@ async def _notify_admins(bot, text: str, kb=None) -> bool:
         groups.append(settings.ADMIN_GROUP_ID)
 
     sent_any = False
-
     for gid in groups:
         if not gid:
             continue
@@ -60,7 +52,6 @@ async def _notify_admins(bot, text: str, kb=None) -> bool:
         except Exception as e:
             logger.exception(f"Admin notify -> group {gid}: {e}")
 
-    # 2) Fallback — har bir adminga DM
     if not sent_any and getattr(settings, "admin_ids", None):
         for uid in settings.admin_ids:
             try:
@@ -73,8 +64,6 @@ async def _notify_admins(bot, text: str, kb=None) -> bool:
                 logger.exception(f"Admin notify -> user {uid}: {e}")
 
     return sent_any
-
-
 
 def _parse_time(text: str) -> str | None:
     if not text:
@@ -132,7 +121,6 @@ def _time_slots() -> List[str]:
     return [f"{h:02d}:00" for h in range(8, 20)]  # 08:00..19:00
 
 def _booked_slots_for_date(year: int, month: int, day: int) -> set[str]:
-    """Faqat admin tasdiqlagan bronlar band hisoblanadi."""
     taken: set[str] = set()
     for b in BOOKINGS.values():
         if b.get("status") == "approved" and b.get("year") == year and b.get("month") == month and b.get("day") == day:
@@ -172,40 +160,42 @@ def _user_review_text(t: dict, b: dict) -> str:
         f"⏰ <b>Vaqt:</b> {b.get('time')}\n"
     )
 
-# --- Entry ---
+# === Entry (MAIN CHANGE — website button opens URL directly) ===
 @router.message(F.text.func(lambda s: s in {L["uz"]["btn_audit"], L["en"]["btn_audit"], L["ru"]["btn_audit"]}))
 async def audit_entry(message: Message):
     lang = get_lang(message.from_user.id, "uz")
     t = _t(lang)
+    url = getattr(settings, "AUDIT_WEBSITE_URL", "https://mcompany.uz/audit/starter/")
     kb = _ikb([_row(
-        InlineKeyboardButton(text=t["audit_web"], callback_data="audit:web"),
-        InlineKeyboardButton(text=t["audit_book"], callback_data="audit:book"),
+        InlineKeyboardButton(text=t.get("audit_web", "🌐 Veb-sayt"), url=url),          # <-- URL!
+        InlineKeyboardButton(text=t.get("audit_book", "📅 Bron"), callback_data="audit:book"),
     )])
     await message.answer(f"<b>{t['audit_title']}</b>\n\n{t['audit_choose']}", reply_markup=kb)
 
-# --- Website ---
+# (Optional legacy handler; URL tugma callback yubormaydi, lekin qoldiramiz)
 @router.callback_query(F.data == "audit:web")
 async def audit_web(cb: CallbackQuery):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
-    url = getattr(settings, "AUDIT_WEBSITE_URL", "https://example.com/audit")
+    url = getattr(settings, "AUDIT_WEBSITE_URL", "https://mcompany.uz/audit/starter/")
     kb = _ikb([
-        _row(InlineKeyboardButton(text=t["more_btn"], url=url)),
-        _row(InlineKeyboardButton(text=t["back_btn"], callback_data="audit:back")),
+        _row(InlineKeyboardButton(text=t.get("more_btn", "🔗 O‘tish"), url=url)),
+        _row(InlineKeyboardButton(text=t.get("back_btn", "◀️ Orqaga"), callback_data="audit:back")),
     ])
     await cb.answer()
-    await cb.message.answer(t["audit_web_desc"], reply_markup=kb, parse_mode="HTML")
+    await cb.message.answer(t.get("audit_web_desc", "Batafsil ma’lumot uchun veb-saytga o‘ting:"), reply_markup=kb, parse_mode="HTML")
 
 @router.callback_query(F.data == "audit:back")
 async def audit_back(cb: CallbackQuery):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
+    url = getattr(settings, "AUDIT_WEBSITE_URL", "https://mcompany.uz/audit/starter/")
     kb = _ikb([_row(
-        InlineKeyboardButton(text=t["audit_web"], callback_data="audit:web"),
-        InlineKeyboardButton(text=t["audit_book"], callback_data="audit:book"),
+        InlineKeyboardButton(text=t.get("audit_web", "🌐 Veb-sayt"), url=url),          # <-- URL ham bu yerda
+        InlineKeyboardButton(text=t.get("audit_book", "📅 Bron"), callback_data="audit:book"),
     )])
     await cb.answer()
     await cb.message.answer(f"<b>{t['audit_title']}</b>\n\n{t['audit_choose']}", reply_markup=kb)
 
-# --- Booking flow ---
+# --- Booking flow (unchanged) ---
 @router.callback_query(F.data == "audit:book")
 async def audit_book(cb: CallbackQuery, state: FSMContext):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
@@ -286,7 +276,6 @@ async def aud_take_day(cb: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     taken = _booked_slots_for_date(data["year"], data["month"], day)
 
-    # time grid with locked slots
     rows, row = [], []
     for s in _time_slots():
         if s in taken:
@@ -308,7 +297,6 @@ async def aud_noop(cb: CallbackQuery):
 @router.callback_query(AuditFSM.TIME, F.data.startswith("aud:time:"))
 async def aud_take_time(cb: CallbackQuery, state: FSMContext):
     lang = get_lang(cb.from_user.id, "uz"); t = _t(lang)
-    # ⚠️ to'g'ri ajratish: 'aud:time:08:00' -> '08:00'
     _, _, val = cb.data.partition("aud:time:")
     await cb.answer()
 
@@ -459,7 +447,7 @@ async def admin_actions(cb: CallbackQuery):
     await cb.answer()
 
     if action == "ok":
-        booking["status"] = "approved"   # ✅ endi slot band hisoblanadi
+        booking["status"] = "approved"
         if user_id:
             await cb.message.bot.send_message(user_id, t["aud_user_approved"])
         await cb.message.edit_reply_markup(reply_markup=None)
