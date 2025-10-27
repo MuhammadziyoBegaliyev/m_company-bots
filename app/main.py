@@ -11,7 +11,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from .config import settings
 from .storage.db import db
 
-# --- Handlers (har biri faqat bir marta import qilinadi) ---
+# --- Handlers (bularni faqat bitta marta import qiling) ---
 from .handlers import start as start_handlers
 from .handlers import lang as lang_handlers
 from .handlers import onboarding as onboarding_handlers
@@ -25,12 +25,13 @@ from .handlers import materials as materials_handlers
 from .handlers import audit as audit_handlers
 from .handlers import admin as admin_handlers  # umumiy admin panel
 
-# ixtiyoriy modullar — mavjud bo‘lsa ulanadi
+# ixtiyoriy modullar — bor bo‘lsa ulanadi
 try:
     from .handlers import admin_materials as admin_materials_handlers
 except Exception:
     admin_materials_handlers = None  # type: ignore
 
+# debug/catch-all handler ham ixtiyoriy bo‘lishi mumkin
 try:
     from .handlers import debug_handler
 except Exception:
@@ -38,10 +39,7 @@ except Exception:
 
 
 def include_once(dp: Dispatcher, router, name: str) -> None:
-    """Router allaqachon ulangan bo‘lsa xato bermaslik uchun himoya."""
-    if router is None:
-        logger.warning(f"⚠️ Router is None, skipping: {name}")
-        return
+    """Router allaqachon ulangan bo‘lsa xatoga uchramaslik uchun himoya."""
     try:
         dp.include_router(router)
         logger.info(f"✅ Attached router: {name}")
@@ -59,7 +57,7 @@ async def main():
     logger.add("bot.log", rotation="1 week", level=settings.LOG_LEVEL)
     logger.add(lambda m: print(m, end=""))  # konsolga ham chiqaramiz
 
-    # ---------- Config snapshot ----------
+    # ---------- Config snapshot (tokenni to‘liq ko‘rsatmaymiz) ----------
     logger.info("=" * 64)
     logger.info("⚙️  BOT CONFIG")
     safe_token = (settings.BOT_TOKEN[:8] + "…") if settings.BOT_TOKEN else "❌ MISSING"
@@ -86,14 +84,10 @@ async def main():
     )
     dp = Dispatcher(storage=MemoryStorage())
 
-    # ---------- Routers order (MUHIM!) ----------
-    # Eslatma:
-    # 1) admin_materials -> debug_handler dan oldin bo‘lishi shart,
-    #    aks holda 'adm:mats' va 'madmin:*' callbacklari debugga tushib ketadi.
-    # 2) admin panel (admin_handlers) menyudagi tugmalarni beradi,
-    #    admin_materials esa 'adm:mats' callbackini qabul qiladi – tartib mos.
-
-    # Kontent va foydalanuvchi oqimi
+    # ---------- Routers order (muhim!) ----------
+   # app/main.py (muhimi – tartib)
+    include_once(dp, admin_handlers.router, "admin")       # 1) /admin birinchi
+    include_once(dp, materials_handlers.router, "materials")
     include_once(dp, start_handlers.router, "start")
     include_once(dp, lang_handlers.router, "lang")
     include_once(dp, onboarding_handlers.router, "onboarding")
@@ -103,15 +97,22 @@ async def main():
     include_once(dp, faq_handlers.router, "faq")
     include_once(dp, contact_handlers.router, "contact")
     include_once(dp, about_handlers.router, "about")
-    include_once(dp, materials_handlers.router, "materials")
     include_once(dp, audit_handlers.router, "audit")
-
-    # Adminlar: avval materiallar modulini, keyin umumiy admin panelni ulaymiz
+    # admin_materials bo'lsa:
     if admin_materials_handlers is not None:
         include_once(dp, admin_materials_handlers.router, "admin_materials")
+    # eng oxirida:
+    include_once(dp, debug_handler.router, "debug_catchall")
+
+
+    # Admin materiallar (adm:mats va madmin:* shu yerga keladi) — ADMINdan OLDIN ulaymiz
+    if admin_materials_handlers is not None:
+        include_once(dp, admin_materials_handlers.router, "admin_materials")
+
+    # Umumiy admin panel
     include_once(dp, admin_handlers.router, "admin")
 
-    # Catch-all / diagnostika — ENG OXIRIDA!
+    # Catch-all/diagnostika — ENG OXIRIDA!
     if debug_handler is not None:
         include_once(dp, debug_handler.router, "debug_catchall")
         logger.warning("⚠️ DEBUG CATCH-ALL ENABLED")
