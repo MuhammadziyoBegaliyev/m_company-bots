@@ -262,7 +262,7 @@ async def add_price_skip(message: Message, state: FSMContext):
     await state.set_state(AddFSM.SRC)
     await message.answer("📎 Kontent yuboring:\n- file (kitob/audio/video/photo)\n- URL (http…)\n- matn")
 
-@router.message(AddFSM.PRICE))
+@router.message(AddFSM.PRICE)
 async def add_price(message: Message, state: FSMContext):
     raw = (message.text or "0").strip().replace(",", ".")
     try:

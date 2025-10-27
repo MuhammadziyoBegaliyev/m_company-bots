@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Optional, List, Dict
 from loguru import logger
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter   # ⬅️ Qo‘shildi
 from aiogram.types import (
     Message, CallbackQuery,
     InlineKeyboardMarkup, InlineKeyboardButton
@@ -38,12 +38,9 @@ CAT_KEYS = {
 # ---------- Normalize helper ----------
 def _norm(s: str) -> str:
     s = (s or "").strip()
-    # komandalarni chetga suramiz
-    if s.startswith("/"):
+    if s.startswith("/"):  # komandalarni inkor qilamiz
         return s
-    # unicode apostrof variantlari
     s = s.replace("’", "'").replace("`", "'")
-    # bo'shliqlarni siqish
     s = " ".join(s.split())
     return s.casefold()
 
@@ -56,7 +53,7 @@ BTN_SET_RAW = {
 BTN_ALIASES = {"materiallar", "materials", "материалы", "material", "материал"}
 BTN_SET_NORM = {_norm(x) for x in (BTN_SET_RAW | BTN_ALIASES)}
 
-# ---------- Category aliaslari (matn yozib yuborilsa ham ishga tushadi) ----------
+# ---------- Category aliaslari ----------
 CAT_ALIASES_RAW = {
     # Uzbek
     "kitob": "book", "kitoblar": "book",
@@ -147,7 +144,6 @@ def _list_kb(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 async def _send_category_list_by_message(message: Message, lang: str, cat: str, page: int = 0):
-    """Alias matn orqali bevosita kategoriya ochilganda ishlatiladi."""
     t = _t(lang)
     if not db or not hasattr(db, "list_materials"):
         await message.answer(_g(t, "materials_db_missing", "DB sozlanmagan."))
@@ -178,7 +174,7 @@ async def _send_category_list_by_message(message: Message, lang: str, cat: str, 
 
 # ===================== Entry =====================
 
-@router.message(Command("materials"))
+@router.message(StateFilter(None), Command("materials"))     # ⬅️ FSM bo‘lmaganda
 async def materials_cmd(message: Message):
     lang = get_lang(message.from_user.id, "uz")
     t = _t(lang)
@@ -189,18 +185,12 @@ async def materials_cmd(message: Message):
     )
 
 def is_materials_button(text: str) -> bool:
-    """Reply tugma matniga mos keladimi? (komandalarni inkor qiladi)"""
-    if not text:
-        return False
-    if text.startswith("/"):
+    if not text or text.startswith("/"):
         return False
     normalized = _norm(text)
-    ok = normalized in BTN_SET_NORM
-    if ok:
-        logger.debug(f"Materials button: MATCH -> {text!r}")
-    return ok
+    return normalized in BTN_SET_NORM
 
-@router.message(F.text.func(is_materials_button))
+@router.message(StateFilter(None), F.text.func(is_materials_button))   # ⬅️ FSM bo‘lmaganda
 async def materials_entry(message: Message):
     lang = get_lang(message.from_user.id, "uz")
     t = _t(lang)
@@ -211,15 +201,12 @@ async def materials_entry(message: Message):
     )
 
 def is_category_alias(text: str) -> bool:
-    if not text:
-        return False
-    if text.startswith("/"):
+    if not text or text.startswith("/"):
         return False
     return _norm(text) in CAT_ALIASES
 
-@router.message(F.text.func(is_category_alias))
+@router.message(StateFilter(None), F.text.func(is_category_alias))     # ⬅️ FSM bo‘lmaganda
 async def materials_entry_by_alias(message: Message):
-    """Foydalanuvchi 'kitob', 'video' va hokazo deb yozsa — to‘g‘ridan-to‘g‘ri shu kategoriya ochiladi."""
     cat = CAT_ALIASES.get(_norm(message.text or ""), "")
     if cat in CAT_KEYS:
         lang = get_lang(message.from_user.id, "uz")
@@ -310,7 +297,6 @@ async def material_open(cb: CallbackQuery):
         )
         return
 
-    # Free content
     st = (it.get("source_type") or "text").lower()
     sr = (it.get("source_ref") or "").strip()
 
